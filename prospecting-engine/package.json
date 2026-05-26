@@ -1,0 +1,24 @@
+{
+  "name": "strath-prospecting-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Strath Agency — Automated locksmith prospect discovery, scoring, and GHL sync",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "db:init": "node -e \"import('./lib/db.js').then(m => m.initDb())\"",
+    "test:scout": "curl -X POST http://localhost:3000/api/prospect-scout -H 'Authorization: Bearer dev-secret' -H 'Content-Type: application/json'"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.4",
+    "@vercel/node": "^3.2.25"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vercel": "^34.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
