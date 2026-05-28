@@ -1,20 +1,20 @@
 {
-  "crons": [
-    {
-      "path": "/api/prospect-scout",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/prospect-audit?batch=5",
-      "schedule": "30 * * * *"
+    "crons": [
+          {
+                  "path": "/api/prospect-scout",
+                  "schedule": "0 8 * * *"
+          },
+          {
+                  "path": "/api/prospect-audit",
+                  "schedule": "30 8 * * *"
+          }
+    ],
+    "functions": {
+          "api/prospect-scout.ts": {
+                  "maxDuration": 60
+          },
+          "api/prospect-audit.ts": {
+                  "maxDuration": 60
+          }
     }
-  ],
-  "functions": {
-    "api/prospect-scout.ts": {
-      "maxDuration": 60
-    },
-    "api/prospect-audit.ts": {
-      "maxDuration": 60
-    }
-  }
 }
