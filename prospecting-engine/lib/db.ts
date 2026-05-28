@@ -1,12 +1,13 @@
 // Strath Agency — Neon DB Client
 // Wraps @neondatabase/serverless for Vercel Edge/Node functions.
-// Connection string from env: NEON_DATABASE_URL
+// Connection string from env: NEON_DATABASE_DATABASE_URL (Neon integration) or NEON_DATABASE_URL
 
 import { neon } from '@neondatabase/serverless';
 import type { Prospect } from './types.js';
 
 function getDb() {
-  const url = process.env.NEON_DATABASE_URL;
+  // Connection string: uses NEON_DATABASE_DATABASE_URL (Neon integration) with NEON_DATABASE_URL as fallback
+    const url = process.env.NEON_DATABASE_DATABASE_URL || process.env.NEON_DATABASE_URL;
   if (!url) throw new Error('NEON_DATABASE_URL env var is not set');
   return neon(url);
 }
