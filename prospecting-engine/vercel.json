@@ -1,0 +1,23 @@
+{
+  "crons": [
+    {
+      "path": "/api/prospect-scout",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/prospect-audit?batch=10",
+      "schedule": "30 8 * * *"
+    }
+  ],
+  "functions": {
+    "api/prospect-scout.ts": {
+      "maxDuration": 60
+    },
+    "api/prospect-audit.ts": {
+      "maxDuration": 60
+    },
+    "api/report.ts": {
+      "maxDuration": 10
+    }
+  }
+}

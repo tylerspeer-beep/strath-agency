@@ -1,0 +1,145 @@
+{
+  "_readme": "This file maps GHL account names to their Railway env var names. Values are NEVER stored here — only the variable names. Claude reads this to know which Railway vars to reference and what to tell Tyler to update. Keep this file in sync with Railway Variables.",
+
+  "active_vars": {
+    "_note": "These three vars are what the BusyBee MCP server (Railway) actually reads on every API call. To switch accounts, Tyler copies the right stored values into these three. Railway auto-redeploys in ~90 seconds.",
+    "GHL_API_KEY": "The PIT currently active — sub-account PIT for location-level work, or Agency PIT for agency-level work",
+    "GHL_BASE_URL": "https://services.leadconnectorhq.com — fixed, never change",
+    "GHL_LOCATION_ID": "The Location ID of the currently active sub-account — not used for agency-level calls"
+  },
+
+  "accounts": {
+
+    "agency": {
+      "display_name": "Strath Agency (Agency Level)",
+      "aliases": ["agency", "agency level", "company level"],
+      "tier": "AGENCY",
+      "endpoint_count": 25,
+      "api_key_var": "GHL_AGENCY_KEY",
+      "location_id_var": null,
+      "known_location_id": null,
+      "railway_switch": {
+        "GHL_API_KEY": "Copy value from GHL_AGENCY_KEY",
+        "GHL_LOCATION_ID": "Not required for agency-level endpoints — leave as-is"
+      },
+      "_note": "GHL_AGENCY_KEY is the stored var. GHL_API_KEY is the active var the MCP server reads. Copy the value, do not rename the active var.",
+      "use_for": [
+        "Create or delete sub-accounts",
+        "Push Snapshots to sub-accounts",
+        "Manage agency-level users",
+        "View all sub-accounts",
+        "Manage SaaS plans and billing"
+      ],
+      "never_use_for": [
+        "Contacts, conversations, workflows, pipelines — these are sub-account level"
+      ]
+    },
+
+    "strath_ops": {
+      "display_name": "Strath Agency Ops",
+      "aliases": ["strath", "strath ops", "agency ops", "strath agency ops", "my account", "main account"],
+      "tier": "SUBACCOUNT",
+      "endpoint_count": "100+",
+      "location_id_var": "GHL_STRATH_STRATHOPS",
+      "api_key_var": "GHL_STRATH_STRATHOPS_KEY",
+      "known_location_id": "confirm from Railway — GHL_STRATH_STRATHOPS",
+      "railway_switch": {
+        "GHL_API_KEY": "Copy value from GHL_STRATH_STRATHOPS_KEY",
+        "GHL_LOCATION_ID": "Copy value from GHL_STRATH_STRATHOPS"
+      },
+      "use_for": [
+        "Prospect contacts and pipeline (10-stage Locksmith Prospect Pipeline)",
+        "Outreach sequences and automations",
+        "Agency CRM — all prospect tracking",
+        "Tyler's operational base"
+      ]
+    },
+
+    "car_key_kings": {
+      "display_name": "Car Key Kings",
+      "aliases": ["car key kings", "carkey kings", "ckk", "tony", "tony's account", "tony's sub-account"],
+      "tier": "SUBACCOUNT",
+      "endpoint_count": "100+",
+      "location_id_var": "GHL_STRATH_CARKEY_KINGS",
+      "api_key_var": "GHL_STRATH_CARKEY_KINGS_KEY",
+      "known_location_id": "6D4IPXvCT5SOEct8ah0O",
+      "railway_switch": {
+        "GHL_API_KEY": "Copy value from GHL_STRATH_CARKEY_KINGS_KEY",
+        "GHL_LOCATION_ID": "Copy value from GHL_STRATH_CARKEY_KINGS (should be 6D4IPXvCT5SOEct8ah0O)"
+      },
+      "use_for": [
+        "Missed call text-back workflow",
+        "Review request automation",
+        "Client website (Car Key Kings site in GHL)",
+        "Tony's contacts and conversations",
+        "Client reporting"
+      ],
+      "warning": "This is a LIVE CLIENT account. Do not test automations here — use Locksmith Master Template for testing."
+    },
+
+    "locksmith_template": {
+      "display_name": "Locksmith Master Template",
+      "aliases": ["template", "master template", "locksmith template", "snapshot source"],
+      "tier": "SUBACCOUNT",
+      "endpoint_count": "100+",
+      "location_id_var": "GHL_STRATH_TEMPLATE",
+      "api_key_var": "GHL_STRATH_TEMPLATE_KEY",
+      "known_location_id": "confirm from Railway — GHL_STRATH_TEMPLATE",
+      "railway_switch": {
+        "GHL_API_KEY": "Copy value from GHL_STRATH_TEMPLATE_KEY",
+        "GHL_LOCATION_ID": "Copy value from GHL_STRATH_TEMPLATE"
+      },
+      "use_for": [
+        "Building and testing all automation workflows before deploying to clients",
+        "Creating the Strath Locksmith Snapshot (name: Strath Locksmith V1 — May 2026)",
+        "Template website build and QA"
+      ],
+      "warning": "NEVER use for real client data. This is a build and test environment only. All real client work goes into their own sub-account cloned from the Snapshot."
+    }
+
+  },
+
+  "how_claude_uses_this": {
+    "step_1": "When Tyler names an account, match it against the aliases in this file to identify which account object applies.",
+    "step_2": "Check the tier field. AGENCY = no Location ID needed. SUBACCOUNT = needs both _KEY and location var.",
+    "step_3": "Call get_active_account to confirm which account is currently live in the MCP server.",
+    "step_4": "If the active account doesn't match the target, call switch_account with the account key or any alias from this file.",
+    "step_5": "The switch takes effect immediately — no Railway redeploy, no manual copy-paste by Tyler.",
+    "step_6": "Proceed with GHL tool calls. State which account is active before making any write operations.",
+    "note_on_switch_account": "switch_account reads all credentials from Railway env vars at server startup. If a credential is missing (e.g. new sub-account added to Railway), the server must be redeployed once for switch_account to see the new vars. After that, no redeployment is ever needed to switch."
+  },
+
+  "mcp_account_tools": {
+    "get_active_account": {
+      "tool_name": "get_active_account",
+      "mcp_ref": "mcp__ghl__get_active_account",
+      "description": "Returns the currently active account name, tier, and Location ID. Never returns raw API key values. Call this first before any GHL operation to confirm context.",
+      "when_to_use": "Always — before the first GHL tool call in any session or task."
+    },
+    "switch_account": {
+      "tool_name": "switch_account",
+      "mcp_ref": "mcp__ghl__switch_account",
+      "description": "Switches the active GHL account in-memory. Accepts any account key or alias from this file. Takes effect immediately on the next tool call. No Railway redeploy required.",
+      "parameter": "account — string, e.g. 'strath_ops', 'tony', 'agency', 'template'",
+      "when_to_use": "Whenever the active account doesn't match the target account for the current task."
+    }
+  },
+
+  "switching_accounts_instructions_for_tyler": {
+    "normal_path": "Claude calls switch_account automatically — Tyler does nothing.",
+    "fallback_if_tool_missing": "If the patched main.ts has not been deployed yet, Tyler must switch manually:",
+    "manual_where": "railway.app → project zesty-achievement → service web → Variables tab",
+    "manual_what_to_do": "Find the _KEY and location vars for the target account in this file. Copy their VALUES into GHL_API_KEY and GHL_LOCATION_ID respectively.",
+    "manual_time_cost": "~2 minutes including redeploy wait",
+    "manual_example": "To switch to Car Key Kings: set GHL_API_KEY = value of GHL_STRATH_CARKEY_KINGS_KEY, set GHL_LOCATION_ID = value of GHL_STRATH_CARKEY_KINGS (6D4IPXvCT5SOEct8ah0O). Wait for green Deployed status.",
+    "deploy_patch": "Push ghl-mcp-switch-account-patch/main.ts from the workspace folder to src/main.ts in the GitHub repo (tylerspeer-beep/Go-High-Level-MCP-2026-Complete). Railway auto-deploys."
+  },
+
+  "non_credential_vars": {
+    "NIXPACKS_NODE_VERSION": "Railway build system config — sets the Node.js version used when building the MCP server. Not a GHL credential. Safe to ignore for all API/account work."
+  },
+
+  "last_updated": "2026-05-22",
+  "maintained_by": "Claude COI — update this file whenever a new sub-account is added to Railway",
+  "patch_status": "BOTH PATCHES DEPLOYED AND VERIFIED — switch_account, get_active_account, and full tool parameter schemas all working as of 22 May 2026. Test contact created in Car Key Kings (ID: Fj9dUgNYfXll6iSvcRGm, email: test.mcp@strathagency.com, tags: mcp-test/delete-me)."
+}
