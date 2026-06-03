@@ -394,10 +394,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               gbpStatus,
               gbpRating: details.rating,
               gbpReviewCount: details.user_ratings_total,
+              gbpUrl: details.url,
               entityType: entityResolution.entityType,
               companiesHouseNumber: entityResolution.companiesHouseNumber,
               city,
               outreachStage: 'Not Contacted',
+              businessName: details.name,
+              websiteUrl: websiteUrl,
             });
 
             const ghlContactId = await ghl.upsertContact({

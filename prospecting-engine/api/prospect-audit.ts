@@ -557,8 +557,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           gbpStatus: prospect.gbpStatus,
           gbpRating: prospect.gbpRating,
           gbpReviewCount: prospect.gbpReviewCount,
+          gbpUrl: prospect.gbpUrl,
           entityType: prospect.entityType,
           companiesHouseNumber: prospect.companiesHouseNumber,
+          businessName: prospect.businessName,
+          websiteUrl: prospect.websiteUrl,
           observation1: obs1,
           observation2: obs2,
           outreachHook,
@@ -589,8 +592,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await updateProspectOpportunityId(prospect.id!, ghlOppId);
             console.log(`[audit] Created GHL opportunity ${ghlOppId} for ${prospect.businessName}`);
           } catch (oppErr) {
-            console.error(`[audit] Opportunity creation failed for ${prospect.businessName}:`, oppErr);
-            // Non-fatal — contact is updated, opportunity can be created on retry
+            // GHL returns 400 with existingId when a duplicate opportunity exists.
+            // Extract the ID and write it back to Neon so we don't retry forever.
+            const errMsg = String(oppErr);
+            const existingIdMatch = errMsg.match(/"existingId"\s*:\s*"([^"]+)"/);
+            if (existingIdMatch?.[1]) {
+              await updateProspectOpportunityId(prospect.id!, existingIdMatch[1]);
+              console.log(`[audit] Duplicate opp — backfilled existingId ${existingIdMatch[1]} for ${prospect.businessName}`);
+            } else {
+              console.error(`[audit] Opportunity creation failed for ${prospect.businessName}:`, oppErr);
+            }
           }
         }
       }

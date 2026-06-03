@@ -159,6 +159,11 @@ export const GHL = {
 
     // ── Client management ────────────────────────────────────────────────────
     ghlSubAccountId:      'q2NZETtXLJT322J6SmAM',
+
+    // ── Business identity ────────────────────────────────────────────────────
+    businessName:         '3vWZA0tSQhEggH7ZFOrJ',
+    websiteUrl:           'TRQsiMWEr1Vz3ojOZ1Fp',
+    gbpUrl:               'ov8L8hJ9z9sn7sR6acec',
   },
   // Tags applied by the scout
   TAGS: {
@@ -309,11 +314,14 @@ export function buildScoutCustomFields(p: {
   gbpStatus?: string;
   gbpRating?: number;
   gbpReviewCount?: number;
+  gbpUrl?: string;
   entityType?: string;
   companiesHouseNumber?: string;
   city?: string;
   outreachStage?: string;
   titleTagQuality?: string;
+  businessName?: string;
+  websiteUrl?: string;
 }): Array<{ id: string; field_value: string | number }> {
   const fields: Array<{ id: string; field_value: string | number }> = [];
 
@@ -329,11 +337,14 @@ export function buildScoutCustomFields(p: {
   add(GHL.FIELD_IDS.gbpStatus, p.gbpStatus);
   add(GHL.FIELD_IDS.gbpRating, p.gbpRating);
   add(GHL.FIELD_IDS.gbpReviewCount, p.gbpReviewCount);
+  add(GHL.FIELD_IDS.gbpUrl, p.gbpUrl);
   add(GHL.FIELD_IDS.entityType, p.entityType);
   add(GHL.FIELD_IDS.companiesHouseNumber, p.companiesHouseNumber);
   add(GHL.FIELD_IDS.sourceCity, p.city);
   add(GHL.FIELD_IDS.outreachStage, p.outreachStage ?? 'Not Contacted');
   add(GHL.FIELD_IDS.titleTagQuality, p.titleTagQuality);
+  add(GHL.FIELD_IDS.businessName, p.businessName);
+  add(GHL.FIELD_IDS.websiteUrl, p.websiteUrl);
 
   return fields;
 }
@@ -346,8 +357,11 @@ export function buildAuditCustomFields(p: {
   gbpStatus?: string;
   gbpRating?: number;
   gbpReviewCount?: number;
+  gbpUrl?: string;
   entityType?: string;
   companiesHouseNumber?: string;
+  businessName?: string;
+  websiteUrl?: string;
   observation1?: string;
   observation2?: string;
   nearestCompetitor?: string;
@@ -371,8 +385,11 @@ export function buildAuditCustomFields(p: {
   add(GHL.FIELD_IDS.gbpStatus, p.gbpStatus);
   add(GHL.FIELD_IDS.gbpRating, p.gbpRating);
   add(GHL.FIELD_IDS.gbpReviewCount, p.gbpReviewCount);
+  add(GHL.FIELD_IDS.gbpUrl, p.gbpUrl);
   add(GHL.FIELD_IDS.entityType, p.entityType);
   add(GHL.FIELD_IDS.companiesHouseNumber, p.companiesHouseNumber);
+  add(GHL.FIELD_IDS.businessName, p.businessName);
+  add(GHL.FIELD_IDS.websiteUrl, p.websiteUrl);
   add(GHL.FIELD_IDS.observation1, p.observation1);
   add(GHL.FIELD_IDS.observation2, p.observation2);
   add(GHL.FIELD_IDS.nearestCompetitor, p.nearestCompetitor);
