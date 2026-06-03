@@ -26,6 +26,7 @@ import {
   getProspectsPendingAudit,
   updateProspectAudit,
   updateProspectOpportunityId,
+  updateProspectGhlIds,
 } from '../lib/db.js';
 import { scoreProspect } from '../lib/scoring.js';
 import type { WebsiteAuditResult, WebsiteStatus, GbpStatus } from '../lib/types.js';
@@ -522,8 +523,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'audited',
       });
 
-      // Push refined audit data to GHL contact and create opportunity if tier confirmed
-      if (prospect.ghlContactId) {
+      // Push refined audit data to GHL contact and create opportunity if tier confirmed.
+      // If ghl_contact_id is null in Neon (e.g. prospect inserted before GHL push was working),
+      // fall back to searching GHL by phone and backfill the ID.
+      let ghlContactId = prospect.ghlContactId;
+      if (!ghlContactId && prospect.phone) {
+        const found = await ghl.findContact(prospect.phone);
+        if (found) {
+          ghlContactId = found.id;
+          await updateProspectGhlIds(prospect.id!, ghlContactId);
+          console.log(`[audit] Backfilled ghl_contact_id for ${prospect.businessName}: ${ghlContactId}`);
+        }
+      }
+
+      if (ghlContactId) {
         // Build report URL — prospect UUID is the report ID
         const reportBaseUrl = process.env.REPORT_BASE_URL
           ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -555,9 +568,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           reportUrl,
         });
 
-        await ghl.updateContactFields(prospect.ghlContactId, customFields);
-        await ghl.addTags(prospect.ghlContactId, [tierTag]);
-        console.log(`[audit] Updated GHL contact ${prospect.ghlContactId} — tier: ${tier}`);
+        await ghl.updateContactFields(ghlContactId, customFields);
+        await ghl.addTags(ghlContactId, [tierTag]);
+        console.log(`[audit] Updated GHL contact ${ghlContactId} — tier: ${tier}`);
 
         // Create GHL opportunity now that the tier is confirmed.
         // Only for A and B tiers, and only if one does not already exist.
@@ -570,7 +583,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               name: `${prospect.businessName} — ${prospect.city}`,
               pipelineId: GHL.PIPELINE_ID,
               pipelineStageId: GHL.STAGES.identified,
-              contactId: prospect.ghlContactId,
+              contactId: ghlContactId,
               status: 'open',
             });
             await updateProspectOpportunityId(prospect.id!, ghlOppId);
