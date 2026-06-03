@@ -43,6 +43,8 @@ export const GHL = {
     retained:         '54dc4fe1-db34-486c-8726-18c2bdd8f6e2',
     lost:             '50b69fc3-a005-4b47-b459-ace2a37fefde',
   },
+  // FIELD_KEYS kept for reference only — GHL contact PUT requires field UUIDs (FIELD_IDS), not key strings.
+  // GHL silently ignores key-format entries and returns 200. Always use FIELD_IDS for writes.
   FIELD_KEYS: {
     // ── Outreach tracking ───────────────────────────────────────────────────
     outreachStage:        'contact.outreach_stage',
@@ -59,37 +61,34 @@ export const GHL = {
     aiVisibilityScore:    'contact.ai_visibility_score',
 
     // ── ICP scoring ──────────────────────────────────────────────────────────
-    rawScore:             'contact.raw_score',      // scout estimate, unaudited
-    icpScore:             'contact.icp_score',      // confirmed score post-audit
+    rawScore:             'contact.raw_score',
+    icpScore:             'contact.icp_score',
     icpTier:              'contact.icp_tier',
 
     // ── Entity / compliance ──────────────────────────────────────────────────
     entityType:           'contact.entity_type',
     companiesHouseNumber: 'contact.companies_house_number',
-    tpsCptpStatus:        'contact.tpsctps_status', // actual key has no underscore before ctps
+    tpsCptpStatus:        'contact.tpsctps_status',
 
     // ── Website quality ──────────────────────────────────────────────────────
     websiteStatus:        'contact.website_status',
     hasSchema:            'contact.has_schema',
     mobileOptimised:      'contact.mobile_optimised',
-    // hasFaq:            'contact.has_faq',        -- CHECKBOX: create manually in GHL UI
 
     // ── GBP ─────────────────────────────────────────────────────────────────
     gbpStatus:            'contact.gbp_status',
-    gbpRating:            'contact.gbp_rating',         // FIXED: was contact.google_review_rating
-    gbpReviewCount:       'contact.gbp_review_count',   // FIXED: was contact.google_review_count
-    // gbpTypeMismatch:   'contact.gbp_type_mismatch',  -- CHECKBOX: create manually in GHL UI
+    gbpRating:            'contact.gbp_rating',
+    gbpReviewCount:       'contact.gbp_review_count',
 
     // ── Business profile ─────────────────────────────────────────────────────
     businessTradeType:    'contact.business_trade_type',
     serviceArea:          'contact.service_area',
-    sourceCity:           'contact.locationcity',        // FIXED: was contact.location_city
+    sourceCity:           'contact.locationcity',
     titleTagQuality:      'contact.title_tag_quality',
     agencyWatermark:      'contact.agency_watermark',
     franchiseFlag:        'contact.franchise_flag',
 
     // ── Do not contact ───────────────────────────────────────────────────────
-    // doNotContactFlag:  'contact.do_not_contact_flag', -- CHECKBOX: create manually in GHL UI
     doNotContactReason:   'contact.do_not_contact_reason',
 
     // ── Report tracking ──────────────────────────────────────────────────────
@@ -98,11 +97,68 @@ export const GHL = {
     reportLastOpenedAt:         'contact.report_last_opened_at',
     reportOpenCount:            'contact.report_open_count',
     reportSectionsViewed:       'contact.report_sections_viewed',
-    // reportCtaClicked:        'contact.report_cta_clicked',  -- CHECKBOX: create manually in GHL UI
     reportTimeOnPageSeconds:    'contact.report_time_on_page_seconds',
 
     // ── Client management ────────────────────────────────────────────────────
     ghlSubAccountId:      'contact.ghl_subaccount_id',
+  },
+  // Field UUIDs — verified 3 Jun 2026 via GET /locations/{id}/customFields.
+  // Use these (not FIELD_KEYS) when writing to GHL via PUT /contacts/{id}.
+  FIELD_IDS: {
+    // ── Outreach tracking ───────────────────────────────────────────────────
+    outreachStage:        '73BozTdNQufntQ3mKc3K',
+    sequenceStatus:       'phOmcu3qbJalYhRADv0m',
+    responseDate:         'RRbuIn56ETycAwmkM0zT',
+    whatsappEligible:     's9lNKRXq6aVdriqzVxlP',
+
+    // ── Audit outputs ────────────────────────────────────────────────────────
+    observation1:         'Sk7axtnOCvX6VbXrS5wd',
+    observation2:         '3leJlcPxoJHXQgPjKFdG',
+    nearestCompetitor:    'M2afIWxwYDplAJdiIruy',
+    outreachHook:         'eXygrVk5rgA0KNXaoBlq',
+    quickWins:            '8DfXT55RQanwJSpvNpt0',
+    aiVisibilityScore:    'VvQ9s0ihgKFEfCIIX23F',
+
+    // ── ICP scoring ──────────────────────────────────────────────────────────
+    rawScore:             'Gx7hANQPUcpghuAJqjAG',
+    icpScore:             'KtdGRo2H6AkJ2SYyAbpR',
+    icpTier:              'KbxizRTDaK1oRn3TRDJG',
+
+    // ── Entity / compliance ──────────────────────────────────────────────────
+    entityType:           'lyr2gHTjCnuponJg0v7d',
+    companiesHouseNumber: 'pONs3R8HVubJaA9MxxF7',
+    tpsCptpStatus:        'raYtYCN6warnhmGwJMRJ',
+
+    // ── Website quality ──────────────────────────────────────────────────────
+    websiteStatus:        'czraIs6sKMNpYeOSBjdA',
+    hasSchema:            'KeZ2bl3VVckbJRLGApBs',
+    mobileOptimised:      'w0GNCjAB0SvcN98mN0Aw',
+
+    // ── GBP ─────────────────────────────────────────────────────────────────
+    gbpStatus:            'ifLfK1GLLFU07ZTBrqLW',
+    gbpRating:            'e8nu4c1NorvLiN8PVfVI',
+    gbpReviewCount:       'ucy9Pr5x4FEO398DcTuJ',
+
+    // ── Business profile ─────────────────────────────────────────────────────
+    businessTradeType:    'vkYInfQdnyDDgoZ48VoL',
+    sourceCity:           'xeu7RsNrRcliZFRdMPMU',
+    titleTagQuality:      '8m3XTkuxQJclZnZV4nUQ',
+    agencyWatermark:      'RvWaAU7LTaUElVBVtrjz',
+    franchiseFlag:        'KsnUXZd5a474Q2BAsln5',
+
+    // ── Do not contact ───────────────────────────────────────────────────────
+    doNotContactReason:   'ni2IQLKx5FVE9GV51KaI',
+
+    // ── Report tracking ──────────────────────────────────────────────────────
+    reportUrl:                  'c6JtF7wICYmqwQdApYgV',
+    reportFirstOpenedAt:        'wtEdzyqquMh5nf1uUBI7',
+    reportLastOpenedAt:         'HBSvO8jZ1OIUEaCZRv99',
+    reportOpenCount:            '8jabUZ3jtnBSnPi8lA6W',
+    reportSectionsViewed:       'Oft0VvnvXzHpjutMUqSi',
+    reportTimeOnPageSeconds:    'NOH0M0vs860XXylQm1wv',
+
+    // ── Client management ────────────────────────────────────────────────────
+    ghlSubAccountId:      'q2NZETtXLJT322J6SmAM',
   },
   // Tags applied by the scout
   TAGS: {
@@ -222,7 +278,7 @@ export class GhlClient {
   // ── Update contact custom fields ───────────────────────────────────────────
   async updateContactFields(
     contactId: string,
-    customFields: Array<{ key: string; field_value: string | number }>
+    customFields: Array<{ id: string; field_value: string | number }>
   ): Promise<void> {
     await this.request(
       'PUT',
@@ -258,26 +314,26 @@ export function buildScoutCustomFields(p: {
   city?: string;
   outreachStage?: string;
   titleTagQuality?: string;
-}): Array<{ key: string; field_value: string | number }> {
-  const fields: Array<{ key: string; field_value: string | number }> = [];
+}): Array<{ id: string; field_value: string | number }> {
+  const fields: Array<{ id: string; field_value: string | number }> = [];
 
-  const add = (key: string, value: string | number | undefined | null) => {
+  const add = (id: string, value: string | number | undefined | null) => {
     if (value !== undefined && value !== null && value !== '') {
-      fields.push({ key, field_value: value });
+      fields.push({ id, field_value: value });
     }
   };
 
-  add(GHL.FIELD_KEYS.rawScore, p.rawScore);
-  add(GHL.FIELD_KEYS.icpTier, p.icpTier ?? 'Pending Audit');
-  add(GHL.FIELD_KEYS.websiteStatus, p.websiteStatus);
-  add(GHL.FIELD_KEYS.gbpStatus, p.gbpStatus);
-  add(GHL.FIELD_KEYS.gbpRating, p.gbpRating);
-  add(GHL.FIELD_KEYS.gbpReviewCount, p.gbpReviewCount);
-  add(GHL.FIELD_KEYS.entityType, p.entityType);
-  add(GHL.FIELD_KEYS.companiesHouseNumber, p.companiesHouseNumber);
-  add(GHL.FIELD_KEYS.sourceCity, p.city);
-  add(GHL.FIELD_KEYS.outreachStage, p.outreachStage ?? 'Not Contacted');
-  add(GHL.FIELD_KEYS.titleTagQuality, p.titleTagQuality);
+  add(GHL.FIELD_IDS.rawScore, p.rawScore);
+  add(GHL.FIELD_IDS.icpTier, p.icpTier ?? 'Pending Audit');
+  add(GHL.FIELD_IDS.websiteStatus, p.websiteStatus);
+  add(GHL.FIELD_IDS.gbpStatus, p.gbpStatus);
+  add(GHL.FIELD_IDS.gbpRating, p.gbpRating);
+  add(GHL.FIELD_IDS.gbpReviewCount, p.gbpReviewCount);
+  add(GHL.FIELD_IDS.entityType, p.entityType);
+  add(GHL.FIELD_IDS.companiesHouseNumber, p.companiesHouseNumber);
+  add(GHL.FIELD_IDS.sourceCity, p.city);
+  add(GHL.FIELD_IDS.outreachStage, p.outreachStage ?? 'Not Contacted');
+  add(GHL.FIELD_IDS.titleTagQuality, p.titleTagQuality);
 
   return fields;
 }
@@ -300,31 +356,31 @@ export function buildAuditCustomFields(p: {
   aiVisibilityScore?: number;
   titleTagQuality?: string;
   reportUrl?: string;
-}): Array<{ key: string; field_value: string | number }> {
-  const fields: Array<{ key: string; field_value: string | number }> = [];
+}): Array<{ id: string; field_value: string | number }> {
+  const fields: Array<{ id: string; field_value: string | number }> = [];
 
-  const add = (key: string, value: string | number | undefined | null) => {
+  const add = (id: string, value: string | number | undefined | null) => {
     if (value !== undefined && value !== null && value !== '') {
-      fields.push({ key, field_value: value });
+      fields.push({ id, field_value: value });
     }
   };
 
-  add(GHL.FIELD_KEYS.icpScore, p.icpScore);
-  add(GHL.FIELD_KEYS.icpTier, p.icpTier);
-  add(GHL.FIELD_KEYS.websiteStatus, p.websiteStatus);
-  add(GHL.FIELD_KEYS.gbpStatus, p.gbpStatus);
-  add(GHL.FIELD_KEYS.gbpRating, p.gbpRating);
-  add(GHL.FIELD_KEYS.gbpReviewCount, p.gbpReviewCount);
-  add(GHL.FIELD_KEYS.entityType, p.entityType);
-  add(GHL.FIELD_KEYS.companiesHouseNumber, p.companiesHouseNumber);
-  add(GHL.FIELD_KEYS.observation1, p.observation1);
-  add(GHL.FIELD_KEYS.observation2, p.observation2);
-  add(GHL.FIELD_KEYS.nearestCompetitor, p.nearestCompetitor);
-  add(GHL.FIELD_KEYS.outreachHook, p.outreachHook);
-  add(GHL.FIELD_KEYS.quickWins, p.quickWins);
-  add(GHL.FIELD_KEYS.aiVisibilityScore, p.aiVisibilityScore);
-  add(GHL.FIELD_KEYS.titleTagQuality, p.titleTagQuality);
-  add(GHL.FIELD_KEYS.reportUrl, p.reportUrl);
+  add(GHL.FIELD_IDS.icpScore, p.icpScore);
+  add(GHL.FIELD_IDS.icpTier, p.icpTier);
+  add(GHL.FIELD_IDS.websiteStatus, p.websiteStatus);
+  add(GHL.FIELD_IDS.gbpStatus, p.gbpStatus);
+  add(GHL.FIELD_IDS.gbpRating, p.gbpRating);
+  add(GHL.FIELD_IDS.gbpReviewCount, p.gbpReviewCount);
+  add(GHL.FIELD_IDS.entityType, p.entityType);
+  add(GHL.FIELD_IDS.companiesHouseNumber, p.companiesHouseNumber);
+  add(GHL.FIELD_IDS.observation1, p.observation1);
+  add(GHL.FIELD_IDS.observation2, p.observation2);
+  add(GHL.FIELD_IDS.nearestCompetitor, p.nearestCompetitor);
+  add(GHL.FIELD_IDS.outreachHook, p.outreachHook);
+  add(GHL.FIELD_IDS.quickWins, p.quickWins);
+  add(GHL.FIELD_IDS.aiVisibilityScore, p.aiVisibilityScore);
+  add(GHL.FIELD_IDS.titleTagQuality, p.titleTagQuality);
+  add(GHL.FIELD_IDS.reportUrl, p.reportUrl);
 
   return fields;
 }
@@ -345,7 +401,7 @@ export function buildProspectCustomFields(p: {
   nearestCompetitor?: string;
   city?: string;
   outreachStage?: string;
-}): Array<{ key: string; field_value: string | number }> {
+}): Array<{ id: string; field_value: string | number }> {
   return buildScoutCustomFields({
     rawScore: p.icpScore, // best approximation before rawScore existed
     icpTier: p.icpTier,
