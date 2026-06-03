@@ -333,7 +333,7 @@ export async function updateProspectAudit(
       score_breakdown    = COALESCE(${fields.scoreBreakdown ? JSON.stringify(fields.scoreBreakdown) : null}::jsonb, score_breakdown),
       status             = COALESCE(${fields.status ?? null}, status),
       audit_error        = COALESCE(${fields.auditError ?? null}, audit_error),
-      scored_at          = CASE WHEN ${fields.icpScore ?? null} IS NOT NULL THEN now() ELSE scored_at END,
+      scored_at          = CASE WHEN ${fields.icpScore ?? null}::integer IS NOT NULL THEN now() ELSE scored_at END,
       updated_at         = now()
     WHERE id = ${prospectId}
   `;
