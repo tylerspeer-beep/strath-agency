@@ -63,6 +63,24 @@ export interface Prospect {
   gbpStatus?: GbpStatus;
   gbpUrl?: string;
   gbpTypeMismatch?: boolean; // true if GBP types[] doesn't include 'locksmith'
+  gbpCategories?: string[]; // raw Places types[] e.g. ['locksmith','point_of_interest']
+
+  // Places lifecycle
+  // 'OPERATIONAL' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY'
+  // Scout hard-skips non-OPERATIONAL records; field stored for audit visibility.
+  businessStatus?: string;
+
+  // Auto-locksmith focus classification (set by scout)
+  //   confirmed: name regex matches auto AND discovered via auto keyword
+  //   likely:    one signal present
+  //   unknown:   neither — status='flagged' for manual review
+  autoFocus?: 'confirmed' | 'likely' | 'unknown';
+
+  // How franchise_flag became true. 'filter_match' | 'name_pattern' | 'privacy_policy' | 'manual'
+  franchiseDetectedBy?: string;
+
+  // Why a record was marked status='do_not_contact'
+  doNotContactReason?: string;
 
   // Entity
   entityType: EntityType;

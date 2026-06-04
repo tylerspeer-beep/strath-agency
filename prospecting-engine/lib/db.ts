@@ -69,6 +69,11 @@ function rowToProspect(row: Record<string, any>): Prospect {
     gbpReviewCount:        row.gbp_review_count ?? undefined,
     gbpStatus:             row.gbp_status ?? undefined,
     gbpUrl:                row.gbp_url ?? undefined,
+    gbpCategories:         row.gbp_categories ?? undefined,
+    businessStatus:        row.business_status ?? undefined,
+    autoFocus:             row.auto_focus ?? undefined,
+    franchiseDetectedBy:   row.franchise_detected_by ?? undefined,
+    doNotContactReason:    row.do_not_contact_reason ?? undefined,
     entityType:            row.entity_type ?? 'Unknown',
     companiesHouseNumber:  row.companies_house_number ?? undefined,
     companiesHouseName:    row.companies_house_name ?? undefined,
@@ -219,7 +224,8 @@ export async function insertProspect(p: Prospect): Promise<string> {
       business_name, trading_name, city, region, postcode, full_address,
       latitude, longitude, phone, email, website_url,
       google_place_id, gbp_name, gbp_rating, gbp_review_count, gbp_status, gbp_url,
-      entity_type, website_status, franchise_flag,
+      gbp_categories, business_status, auto_focus,
+      entity_type, website_status, franchise_flag, franchise_detected_by,
       raw_score, icp_score, icp_tier, score_breakdown,
       duplicate_of_place_id,
       source, status, scored_at
@@ -241,9 +247,13 @@ export async function insertProspect(p: Prospect): Promise<string> {
       ${p.gbpReviewCount ?? null},
       ${p.gbpStatus ?? null},
       ${p.gbpUrl ?? null},
+      ${p.gbpCategories ?? null},
+      ${p.businessStatus ?? null},
+      ${p.autoFocus ?? null},
       ${p.entityType ?? 'Unknown'},
       ${p.websiteStatus ?? null},
       ${p.franchiseFlag ?? false},
+      ${p.franchiseDetectedBy ?? null},
       ${p.rawScore ?? null},
       ${p.icpScore ?? null},
       ${p.icpTier ?? 'ungraded'},
@@ -269,6 +279,24 @@ export async function updateProspectGhlIds(
       ghl_contact_id = ${ghlContactId},
       ghl_opportunity_id = ${ghlOpportunityId ?? null},
       ghl_synced_at = now(),
+      updated_at = now()
+    WHERE id = ${prospectId}
+  `;
+}
+
+// Backfill phone/email from a homepage scrape during audit.
+// Uses COALESCE so we never overwrite an existing value with null.
+export async function updateProspectContactInfo(
+  prospectId: string,
+  contact: { phone?: string | null; email?: string | null }
+): Promise<void> {
+  if (!contact.phone && !contact.email) return;
+  const sql = getDb();
+  const normalizedPhone = contact.phone ? normalizePhone(contact.phone) : null;
+  await sql`
+    UPDATE prospects SET
+      phone      = COALESCE(phone, ${normalizedPhone}),
+      email      = COALESCE(email, ${contact.email ?? null}),
       updated_at = now()
     WHERE id = ${prospectId}
   `;
@@ -310,6 +338,9 @@ export async function updateProspectAudit(
     scoreBreakdown?: object;
     status?: string;
     auditError?: string;
+    franchiseFlag?: boolean;
+    franchiseDetectedBy?: string;
+    doNotContactReason?: string;
   }
 ): Promise<void> {
   const sql = getDb();
@@ -333,6 +364,9 @@ export async function updateProspectAudit(
       score_breakdown    = COALESCE(${fields.scoreBreakdown ? JSON.stringify(fields.scoreBreakdown) : null}::jsonb, score_breakdown),
       status             = COALESCE(${fields.status ?? null}, status),
       audit_error        = COALESCE(${fields.auditError ?? null}, audit_error),
+      franchise_flag     = COALESCE(${fields.franchiseFlag ?? null}, franchise_flag),
+      franchise_detected_by  = COALESCE(${fields.franchiseDetectedBy ?? null}, franchise_detected_by),
+      do_not_contact_reason  = COALESCE(${fields.doNotContactReason ?? null}, do_not_contact_reason),
       scored_at          = CASE WHEN ${fields.icpScore ?? null}::integer IS NOT NULL THEN now() ELSE scored_at END,
       updated_at         = now()
     WHERE id = ${prospectId}
@@ -407,11 +441,16 @@ export async function getProspectsPendingAudit(limit = 10): Promise<Prospect[]> 
 
 export async function getProspectsMissingGhlContact(limit = 20): Promise<Prospect[]> {
   const sql = getDb();
+  // Require at least one of phone/email — GHL /contacts/upsert rejects records
+  // without either (400 "Pass at least one of number, email query parameter").
+  // Contactless records that *might* recover contact info from a website scrape
+  // are handled by the audit cron + resolve-contactless script, not here.
   const rows = await sql`
     SELECT * FROM prospects
     WHERE ghl_contact_id IS NULL
       AND COALESCE(raw_score, icp_score, 0) >= 40
       AND status NOT IN ('do_not_contact', 'flagged')
+      AND (phone IS NOT NULL OR email IS NOT NULL)
     ORDER BY COALESCE(raw_score, icp_score, 0) DESC
     LIMIT ${limit}
   `;

@@ -27,8 +27,10 @@ import {
   updateProspectAudit,
   updateProspectOpportunityId,
   updateProspectGhlIds,
+  updateProspectContactInfo,
 } from '../lib/db.js';
-import { scoreProspect } from '../lib/scoring.js';
+import { scoreProspect, detectFranchiseFromText } from '../lib/scoring.js';
+import { extractContactFromHtml } from '../lib/contact-extraction.js';
 import type { WebsiteAuditResult, WebsiteStatus, GbpStatus } from '../lib/types.js';
 
 // ── Claude Sonnet audit engine ────────────────────────────────────────────────
@@ -290,6 +292,67 @@ async function auditWebsite(url: string): Promise<WebsiteAuditResult> {
   }
 }
 
+// ── Franchise detection (audit-time, privacy-policy scrape) ──────────────────
+// The scout filters known franchise brand names via prospect_filters before any
+// record is inserted. This catches everything we know about by name. The deeper
+// signal is the legal-text on a business's own site — franchisees almost always
+// disclose the relationship in their privacy policy or T&Cs.
+//
+// Why audit time, not scout: requires a second HTTP fetch per prospect and only
+// makes sense once we already have homepage HTML. Skipped for prospects with no
+// website (that's a buying signal in itself).
+//
+// Returns { isFranchise, matchedTerm, source } or null if we couldn't check.
+
+const PRIVACY_LINK_REGEX =
+  /<a[^>]+href=["']([^"']+)["'][^>]*>\s*[^<]*\b(privacy|terms|legal|t&cs?)\b/gi;
+
+function resolvePrivacyUrl(homepageHtml: string, homepageUrl: string): string | null {
+  const m = PRIVACY_LINK_REGEX.exec(homepageHtml);
+  if (!m) return null;
+  const href = m[1];
+  try {
+    // Relative or absolute — resolve against homepage URL
+    return new URL(href, homepageUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+async function detectFranchiseFromSite(
+  homepageHtml: string,
+  homepageUrl: string
+): Promise<{ isFranchise: boolean; matchedTerm: string | null; source: 'homepage' | 'privacy_policy' | 'none' }> {
+  // First scan the homepage itself — many small franchisees disclose right on the footer.
+  const homepageHit = detectFranchiseFromText(homepageHtml);
+  if (homepageHit) {
+    return { isFranchise: true, matchedTerm: homepageHit, source: 'homepage' };
+  }
+
+  // Then try to find + fetch the privacy policy page
+  const privacyUrl = resolvePrivacyUrl(homepageHtml, homepageUrl);
+  if (!privacyUrl) {
+    return { isFranchise: false, matchedTerm: null, source: 'none' };
+  }
+
+  try {
+    const res = await fetch(privacyUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrathAuditBot/1.0)', 'Accept': 'text/html' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { isFranchise: false, matchedTerm: null, source: 'none' };
+    const text = (await res.text()).slice(0, 12000);
+    const hit = detectFranchiseFromText(text);
+    if (hit) {
+      console.log(`[audit] Franchise indicator "${hit}" in privacy policy: ${privacyUrl}`);
+      return { isFranchise: true, matchedTerm: hit, source: 'privacy_policy' };
+    }
+  } catch (err) {
+    console.warn(`[audit] Privacy policy fetch failed: ${err}`);
+  }
+  return { isFranchise: false, matchedTerm: null, source: 'none' };
+}
+
 // ── Outreach hook generator ───────────────────────────────────────────────────
 // Generates a single punchy opening sentence for Touch 1 email using Claude.
 // Falls back to a template sentence if Claude is unavailable.
@@ -456,6 +519,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? await auditWebsite(prospect.websiteUrl)
         : null;
 
+      // Contact info recovery — Places sometimes returns no phone/email even when
+      // the business publishes both on its site. We pull tel:/mailto: anchors first
+      // and fall back to body-text regex. Only writes when the field is currently null.
+      if (websiteAudit?.reachable && websiteAudit.rawHtmlSnapshot && (!prospect.phone || !prospect.email)) {
+        const recovered = extractContactFromHtml(websiteAudit.rawHtmlSnapshot);
+        if (recovered.phone || recovered.email) {
+          await updateProspectContactInfo(prospect.id!, {
+            phone: !prospect.phone ? recovered.phone : undefined,
+            email: !prospect.email ? recovered.email : undefined,
+          });
+          console.log(
+            `[audit] Contact recovered for ${prospect.businessName} — ` +
+            `phone:${recovered.phone ?? '-'} (${recovered.source.phone ?? 'none'}) ` +
+            `email:${recovered.email ?? '-'} (${recovered.source.email ?? 'none'})`
+          );
+        }
+      }
+
+      // Franchise detection via privacy policy / homepage legal text.
+      // Skipped if no website OR website unreachable (no homepage HTML to work with).
+      let franchiseFlag: boolean | undefined = prospect.franchiseFlag;
+      let franchiseDetectedBy: string | undefined;
+      if (websiteAudit?.reachable && websiteAudit.rawHtmlSnapshot && prospect.websiteUrl) {
+        const fr = await detectFranchiseFromSite(
+          websiteAudit.rawHtmlSnapshot,
+          prospect.websiteUrl
+        );
+        if (fr.isFranchise) {
+          franchiseFlag = true;
+          franchiseDetectedBy = fr.source === 'privacy_policy' ? 'privacy_policy' : 'homepage_text';
+          console.log(`[audit] Franchise detected for ${prospect.businessName} via ${fr.source} ("${fr.matchedTerm}")`);
+        }
+      }
+
       // Nearest competitor
       const nearestCompetitor = await findNearestCompetitor(
         prospect.businessName,
@@ -493,15 +590,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         obs2
       );
 
-      // Re-score with refined website status
+      // Re-score with refined website status AND any franchise signal found above.
+      // franchiseFlag=true subtracts the +10 "not franchise" bonus in scoring.
       const { score, tier, breakdown } = scoreProspect({
         gbpReviewCount: prospect.gbpReviewCount,
         websiteStatus: websiteAudit?.websiteStatus ?? prospect.websiteStatus,
         gbpStatus: prospect.gbpStatus,
         entityType: prospect.entityType,
         isUrban: true,
-        franchiseFlag: prospect.franchiseFlag,
+        franchiseFlag,
       });
+
+      // Confirmed franchise → flag for manual review (don't proceed to outreach).
+      const finalStatus = franchiseFlag && franchiseDetectedBy ? 'flagged' : 'audited';
 
       // Update Neon DB
       await updateProspectAudit(prospect.id!, {
@@ -520,7 +621,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         icpScore: score,
         icpTier: tier,
         scoreBreakdown: breakdown,
-        status: 'audited',
+        status: finalStatus,
+        franchiseFlag,
+        franchiseDetectedBy,
       });
 
       // Push refined audit data to GHL contact and create opportunity if tier confirmed.

@@ -31,6 +31,8 @@ import {
   classifyWebsiteStatus,
   classifyGbpStatus,
   isUrbanCity,
+  classifyAutoFocus,
+  AUTO_FOCUSED_KEYWORDS,
 } from '../lib/scoring.js';
 import { resolveEntity } from '../lib/companies-house.js';
 import {
@@ -62,12 +64,21 @@ const GHL_PUSH_RAW_SCORE_THRESHOLD = 40;
 // Returns comma-separated string → array (e.g. "locksmith,auto locksmith" → ['locksmith','auto locksmith'])
 // The type=locksmith search is ALWAYS run regardless of keywords — merged separately.
 
+// Strath focus: AUTO locksmiths. Default keywords lean automotive so the
+// Places keyword search surfaces auto-focused businesses. The type=locksmith
+// pass below catches everything else for ICP review.
 function resolveKeywords(req: VercelRequest): string[] {
   const raw =
     (req.query.keyword && typeof req.query.keyword === 'string')
       ? req.query.keyword
-      : process.env.SCOUT_KEYWORD ?? 'locksmith';
+      : process.env.SCOUT_KEYWORD ?? AUTO_FOCUSED_KEYWORDS.join(',');
   return raw.split(',').map(k => k.trim()).filter(Boolean);
+}
+
+// True if the keyword string contains an auto-focused token.
+function isAutoKeyword(keyword: string): boolean {
+  const k = keyword.toLowerCase();
+  return /\b(auto|automotive|car\s*key|vehicle|transponder)\b/.test(k);
 }
 
 // ── City list ─────────────────────────────────────────────────────────────────
@@ -145,21 +156,31 @@ async function nearbySearch(
 
 // Run all configured keywords PLUS a type=locksmith search.
 // Merge by place_id — each place appears exactly once regardless of which search found it.
-// Returns deduped array. Also returns a Set of place_ids found by type=locksmith
-// so the caller can detect gbp_type_mismatch (place NOT in the type=locksmith set).
+// Returns:
+//   - deduped results array
+//   - typeMatchPlaceIds: Set of place_ids found by type=locksmith (for gbp_type_mismatch)
+//   - autoKeywordPlaceIds: Set of place_ids surfaced by an auto-focused keyword
+//     (drives the auto-focus classification downstream).
 async function searchAll(
   lat: number,
   lng: number,
   keywords: string[],
   apiKey: string
-): Promise<{ results: PlacesResult[]; typeMatchPlaceIds: Set<string> }> {
+): Promise<{
+  results: PlacesResult[];
+  typeMatchPlaceIds: Set<string>;
+  autoKeywordPlaceIds: Set<string>;
+}> {
   const seen = new Map<string, PlacesResult>(); // place_id → result
+  const autoKeywordPlaceIds = new Set<string>();
 
-  // 1. Keyword searches (one per keyword)
+  // 1. Keyword searches (one per keyword). Track auto-keyword surfacing.
   for (const keyword of keywords) {
     const batch = await nearbySearch(lat, lng, apiKey, { kind: 'keyword', keyword });
+    const isAuto = isAutoKeyword(keyword);
     for (const r of batch) {
       if (!seen.has(r.place_id)) seen.set(r.place_id, r);
+      if (isAuto) autoKeywordPlaceIds.add(r.place_id);
     }
   }
 
@@ -171,7 +192,7 @@ async function searchAll(
     if (!seen.has(r.place_id)) seen.set(r.place_id, r);
   }
 
-  return { results: [...seen.values()], typeMatchPlaceIds };
+  return { results: [...seen.values()], typeMatchPlaceIds, autoKeywordPlaceIds };
 }
 
 // Detect GBP type mismatch: true if the place's types[] doesn't include 'locksmith'.
@@ -232,8 +253,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!coords) throw new Error(`Could not geocode: ${city}`);
 
     // 2. Search for prospects (keyword searches + type=locksmith, deduped by place_id)
-    const { results: placeResults, typeMatchPlaceIds } = await searchAll(coords.lat, coords.lng, keywords, apiKey);
-    console.log(`[scout] Found ${placeResults.length} raw places (type matches: ${typeMatchPlaceIds.size})`);
+    const { results: placeResults, typeMatchPlaceIds, autoKeywordPlaceIds } =
+      await searchAll(coords.lat, coords.lng, keywords, apiKey);
+    console.log(
+      `[scout] Found ${placeResults.length} raw places ` +
+      `(type matches: ${typeMatchPlaceIds.size}, auto-kw matches: ${autoKeywordPlaceIds.size})`
+    );
     prospectsFound = placeResults.length;
 
     // 3. Fetch details + dedup + filter + score + save each
@@ -241,13 +266,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chApiKey = process.env.COMPANIES_HOUSE_API_KEY;
 
     for (const place of placeResults) {
-      // Skip permanently closed
-      if (place.business_status === 'PERMANENTLY_CLOSED') continue;
-
       try {
-        // Get full place details
+        // Get full place details — details has more reliable business_status + types
         const details = await getPlaceDetails(place.place_id, apiKey);
         if (!details) continue;
+
+        // ── Lifecycle gate ────────────────────────────────────────────────────
+        // Places API status values: OPERATIONAL | CLOSED_TEMPORARILY | CLOSED_PERMANENTLY.
+        // (Previous code used 'PERMANENTLY_CLOSED' — wrong constant, never fired.)
+        // Temporarily closed often means out-of-business or in transition; not worth
+        // outreach. Hard-skip both non-operational states, log + count as suppressed.
+        const businessStatus = details.business_status ?? 'OPERATIONAL';
+        if (businessStatus === 'CLOSED_PERMANENTLY' || businessStatus === 'CLOSED_TEMPORARILY') {
+          console.log(`[scout] Skip (${businessStatus}): ${details.name}`);
+          prospectsSuppressed++;
+          continue;
+        }
+
+        // ── Category gate ─────────────────────────────────────────────────────
+        // 'locksmith' must be IN types[] at ANY position (multi-category GBPs are
+        // common — locksmiths often co-categorize as 'car_repair', 'hardware_store',
+        // etc.). Lock N Leave (storage facility, no 'locksmith' in types) gets
+        // cleanly filtered. Auto-locksmith focus is graded *separately* below.
+        const categories = details.types ?? [];
+        if (!categories.includes('locksmith')) {
+          console.log(`[scout] Skip (wrong_category: [${categories.join(',')}]): ${details.name}`);
+          prospectsSuppressed++;
+          continue;
+        }
+
+        // ── Auto-focus classification ─────────────────────────────────────────
+        // Strath targets AUTO locksmiths specifically. We combine two signals:
+        //   1. business name regex (auto/automotive/car key/transponder/...)
+        //   2. discovered via an auto-focused keyword search
+        // confirmed (both) and likely (one) flow as 'discovered'.
+        // unknown (neither) flows as 'flagged' for manual review.
+        const discoveredViaAutoKeyword = autoKeywordPlaceIds.has(details.place_id);
+        const autoFocus = classifyAutoFocus(details.name, discoveredViaAutoKeyword);
+        const isAutoFocused = autoFocus !== 'unknown';
 
         const rawPhone = details.formatted_phone_number ?? details.international_phone_number;
         const websiteUrl = details.website;
@@ -360,6 +416,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           gbpStatus,
           gbpUrl: details.url,
           gbpTypeMismatch,
+          gbpCategories: categories,
+          businessStatus,
+          autoFocus,
           entityType: entityResolution.entityType,
           companiesHouseNumber: entityResolution.companiesHouseNumber,
           companiesHouseName: entityResolution.companiesHouseName,
@@ -369,7 +428,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // icpScore intentionally NOT set here — audit cron sets it after full analysis
           icpTier: 'ungraded',
           scoreBreakdown: breakdown,
-          status: filterResult.flagged ? 'flagged' : 'discovered',
+          // Status priority: filter-flagged > non-auto > discovered.
+          // 'unknown' auto-focus gets flagged so Tyler can review without losing
+          // a possible auto-capable general locksmith.
+          status: filterResult.flagged ? 'flagged'
+                : !isAutoFocused        ? 'flagged'
+                                        : 'discovered',
           source: 'google_places',
         };
 
@@ -383,9 +447,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
 
         // ── Push to GHL if above threshold ────────────────────────────────────
-        // Flagged prospects are not pushed until reviewed.
-        // Opportunity is NOT created here — audit cron does that after tier confirmation.
-        if (score >= GHL_PUSH_RAW_SCORE_THRESHOLD && !filterResult.flagged) {
+        // Flagged prospects (filter-flagged OR auto-focus=unknown) stay out of GHL
+        // until reviewed. Opportunity is NOT created here — audit cron does that
+        // after tier confirmation.
+        if (score >= GHL_PUSH_RAW_SCORE_THRESHOLD && prospect.status === 'discovered') {
           try {
             const customFields = buildScoutCustomFields({
               rawScore: score,

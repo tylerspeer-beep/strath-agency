@@ -141,10 +141,62 @@ export function isUrbanCity(city: string): boolean {
   return URBAN_CITIES.has(city.toLowerCase().trim());
 }
 
-// ── Franchise / aggregator detection — REMOVED (Session 2) ───────────────────
-// FRANCHISE_KEYWORDS and detectFranchise() were removed and migrated to the
-// prospect_filters table as 'ignore_name_contains' rows. This allows Tyler to
-// manage the suppression list from the DB without a code deploy.
+// ── Franchise / aggregator detection ─────────────────────────────────────────
+// Brand-name suppression happens via prospect_filters (ignore_name_contains rows)
+// at scout time. The audit cron also runs a deeper check by fetching the
+// privacy policy and looking for franchise language — see detectFranchiseFromText
+// below and the audit handler.
+
+const FRANCHISE_INDICATORS = [
+  /\bfranchis(?:e|ee|or|ing)\b/i,
+  /\bmaster\s+franchise\b/i,
+  /\bfranchise\s+agreement\b/i,
+  /\boperated\s+under\s+licen[cs]e\b/i,
+  /\bregistered\s+trade\s*mark\b/i,
+];
+
+// Scans free text (homepage / privacy policy body) for franchise indicators.
+// Returns the matched phrase or null. Cheap regex pass — no allocation per call
+// of consequence. Used by the audit cron's privacy-policy step.
+export function detectFranchiseFromText(text: string): string | null {
+  for (const re of FRANCHISE_INDICATORS) {
+    const m = text.match(re);
+    if (m) return m[0];
+  }
+  return null;
+}
+
+// ── Auto-locksmith focus classification ──────────────────────────────────────
+// Strath targets AUTO locksmiths. Multi-category GBPs are fine (general
+// locksmiths often advertise auto as a secondary service), so we score auto
+// focus on the prospect data we *do* have: business name + which keyword
+// surfaced the place.
 //
-// All franchise suppression now happens via checkProspectFilters() in db.ts.
-// The prospect_filters table was seeded with these keywords in migration_002.
+// Confirmed = strongest evidence (name AND keyword). These go straight into
+// outreach. Likely = single signal — still ingested as 'discovered'.
+// Unknown = no auto signal — ingested as 'flagged' so Tyler can review without
+// the record vanishing.
+
+const AUTO_NAME_REGEX =
+  /\b(auto|automotive|automobile|car\s*key|key\s*fob|transponder|ignition|vehicle\s*key|remote\s*program(?:ming)?|car\s*locks?|car\s*locksmith|auto\s*locksmith)\b/i;
+
+export const AUTO_FOCUSED_KEYWORDS = [
+  'auto locksmith',
+  'car key',
+  'car key locksmith',
+  'automotive locksmith',
+];
+
+export function nameMatchesAutoLocksmith(name: string): boolean {
+  return AUTO_NAME_REGEX.test(name);
+}
+
+export function classifyAutoFocus(
+  name: string,
+  discoveredViaAutoKeyword: boolean
+): 'confirmed' | 'likely' | 'unknown' {
+  const nameHit = nameMatchesAutoLocksmith(name);
+  if (nameHit && discoveredViaAutoKeyword) return 'confirmed';
+  if (nameHit || discoveredViaAutoKeyword)   return 'likely';
+  return 'unknown';
+}
