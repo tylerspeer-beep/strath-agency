@@ -448,7 +448,7 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
   <div class="cta-section">
     <h2>Ready to fix this?</h2>
     <p>Strath Agency helps independent locksmiths dominate local search and AI results.<br>No long contracts. Results in 30 days or you don't pay.</p>
-    <a class="cta-btn" href="mailto:tyler@strathagency.com?subject=Report%20-%20${encodeURIComponent(businessName)}&body=Hi%20Tyler%2C%20I%20saw%20the%20report%20for%20${encodeURIComponent(businessName)}%20and%20I%27d%20like%20to%20chat.">Book a Free Call</a>
+    <a class="cta-btn" href="https://api.leadconnectorhq.com/widget/booking/GwjL8MDjGNohuN6zEYZR" target="_blank" rel="noopener noreferrer">Book a Free Call</a>
   </div>
 
   <div class="footer">
