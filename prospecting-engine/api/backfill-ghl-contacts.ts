@@ -32,6 +32,7 @@ import {
 import {
   getProspectsMissingGhlContact,
   updateProspectGhlIds,
+  checkProspectFilters,
   normalizePhone,
 } from '../lib/db.js';
 
@@ -72,15 +73,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const results: Array<{
     id: string;
     name: string;
-    status: 'ok' | 'failed';
+    status: 'ok' | 'skipped' | 'failed';
     ghlContactId?: string;
     error?: string;
+    reason?: string;
   }> = [];
   let succeeded = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const prospect of prospects) {
     try {
+      // Apply prospect_filters retroactively. A filter added after this prospect
+      // was scouted (e.g. Timpson) should still suppress the GHL push here.
+      const filterResult = await checkProspectFilters({
+        businessName: prospect.businessName,
+        googlePlaceId: prospect.googlePlaceId,
+        websiteUrl: prospect.websiteUrl,
+      });
+      if (filterResult.suppressed || filterResult.flagged) {
+        results.push({
+          id: prospect.id!,
+          name: prospect.businessName,
+          status: 'skipped',
+          reason: filterResult.matchedRule ?? 'filter_match',
+        });
+        skipped++;
+        console.log(`[backfill] SKIP ${prospect.businessName} — ${filterResult.matchedRule}`);
+        continue;
+      }
+
       const score = prospect.rawScore ?? prospect.icpScore;
 
       // Audit may have already run on these, so prefer the confirmed tier when present.
@@ -153,6 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     processed: prospects.length,
     succeeded,
     failed,
+    skipped,
     remaining,
     durationMs: Date.now() - startMs,
     results,
