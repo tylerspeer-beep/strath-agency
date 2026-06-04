@@ -38,16 +38,17 @@ async function updateGhlReportFields(
   const baseUrl = process.env.GHL_BASE_URL ?? 'https://services.leadconnectorhq.com';
   if (!pit || !contactId) return;
 
-  const customFields: Array<{ key: string; field_value: string | number }> = [
-    { key: 'contact.report_last_opened_at', field_value: fields.lastOpen },
-    { key: 'contact.report_open_count',     field_value: fields.openCount },
+  // GHL PUT /contacts requires field UUIDs (`id`), not key strings. Session 2 Bug #5.
+  const customFields: Array<{ id: string; field_value: string | number }> = [
+    { id: 'HBSvO8jZ1OIUEaCZRv99', field_value: fields.lastOpen },   // report_last_opened_at
+    { id: '8jabUZ3jtnBSnPi8lA6W', field_value: fields.openCount },  // report_open_count
   ];
 
   if (fields.firstOpen) {
-    customFields.push({ key: 'contact.report_first_opened_at', field_value: fields.firstOpen });
+    customFields.push({ id: 'wtEdzyqquMh5nf1uUBI7', field_value: fields.firstOpen }); // report_first_opened_at
   }
   if (fields.sectionsViewed) {
-    customFields.push({ key: 'contact.report_sections_viewed', field_value: fields.sectionsViewed });
+    customFields.push({ id: 'Oft0VvnvXzHpjutMUqSi', field_value: fields.sectionsViewed }); // report_sections_viewed
   }
 
   try {
