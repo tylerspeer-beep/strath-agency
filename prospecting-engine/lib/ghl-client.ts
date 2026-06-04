@@ -226,6 +226,8 @@ export class GhlClient {
   }
 
   // ── Create or update a contact ─────────────────────────────────────────────
+  // customFields uses `id` (field UUID), not `key`. GHL silently ignores key-format
+  // entries on this endpoint — see Session 2 Bug #5 in SESSION_2_DEBRIEF.md.
   async upsertContact(payload: {
     name?: string;
     email?: string;
@@ -234,7 +236,7 @@ export class GhlClient {
     website?: string;
     city?: string;
     tags?: string[];
-    customFields?: Array<{ key: string; field_value: string | number }>;
+    customFields?: Array<{ id: string; field_value: string | number }>;
   }): Promise<string> {
     const body = {
       locationId: this.locationId,

@@ -398,3 +398,23 @@ export async function getProspectsPendingAudit(limit = 10): Promise<Prospect[]> 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (rows as Record<string, any>[]).map(rowToProspect);
 }
+
+// ── Prospects missing GHL contact ─────────────────────────────────────────────
+// Returns prospects that should have a GHL contact but don't.
+// Used by /api/backfill-ghl-contacts to push pre-fix records into GHL.
+// Filters out suppressed duplicates and flagged-for-review records so we never
+// push something the scout would have skipped.
+
+export async function getProspectsMissingGhlContact(limit = 20): Promise<Prospect[]> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM prospects
+    WHERE ghl_contact_id IS NULL
+      AND COALESCE(raw_score, icp_score, 0) >= 40
+      AND status NOT IN ('do_not_contact', 'flagged')
+    ORDER BY COALESCE(raw_score, icp_score, 0) DESC
+    LIMIT ${limit}
+  `;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (rows as Record<string, any>[]).map(rowToProspect);
+}
