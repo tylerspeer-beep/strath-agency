@@ -89,14 +89,23 @@ transform). Still accurate. Low impact until outreach prep. No change made.
 - "**over 70%** of emergency locksmith searches happen on a phone" (uncited) → **softened** to "most … happen on a phone."
 - "Schema Markup (Structured Data)" jargon → relabelled "Machine-readable business info (schema markup)."
 
+**CTA guarantee — DECIDED & FIXED (9 Jun 2026).** Tyler confirmed Strath does **not**
+offer "results in 30 days or you don't pay." Both instances of the guarantee have been
+replaced with honest, directional timeframes per D5:
+- `api/report.ts` report CTA — was "Results in 30 days or you don't pay."
+- `strathgrowth-landing-page.html` hero note — was "Results in 30 days or we work for free."
+
+New copy is directional, not a dated promise: **GBP fast lever** — answered calls can
+climb within weeks, Maps ranking typically moves over **1–3 months** (proximity-capped);
+**reviews** lift conversion immediately; **broader search/SEO** is a **6–12 month** build;
+**AI visibility** is treated as a byproduct, never a dated promise.
+
+> Note: `strathgrowth-landing-page.html` is currently **untracked** in git (see the
+> untracked-files flag). The edit updates the Drive-synced master; it will not reach
+> GitHub until that file is versioned.
+
 **Still flagged for your product decision (not changed):**
 
-- **CTA guarantee** "Results in 30 days or you don't pay." — this is an unverified
-  business promise, not a timeframe the system can stand behind. D5 says claims must
-  be honest/directional (GBP: answered calls in weeks, Maps 1–3 months; SEO 6–12
-  months; reviews lift conversion immediately). **Do you actually offer this
-  guarantee?** If yes, keep + add structure; if no, replace with the directional
-  timeframes. I did **not** rewrite your offer copy unilaterally.
 - Remaining uncited stats ("40+ reviews dominate local Maps") — directionally fine
   but should carry a one-line "how we measure" note (the strongest locksmith-specific
   data is a **2018 BrightLocal** study; some call stats are vendor-sourced).
@@ -254,14 +263,13 @@ per D5) and is **not yet wired**. The slot exists so that enrichment lands later
 - Stale, pre-rebuild rows (breakdown lacking the `phone` key) are screened out so we
   never render misleading bars; their per-signal findings cards still show.
 
-> **Framing decision — FLAGGED for your sign-off.** Internally the stored number is
-> an *opportunity* score (high = weak business = hot prospect). Showing that raw to a
-> prospect is backwards ("you scored 92!" would mean "you're very weak"). I chose the
-> **sensible default**: the report shows the *inverse* presence-strength view (high =
-> strong), derived deterministically from the same stored breakdown — not a second
-> rubric. If you'd rather the report show a literal stored number, the clean
-> alternative is to store a dedicated `presence_score` column (one function, two
-> stored views) — a small migration. Tell me which you prefer.
+> **Framing decision — CONFIRMED (9 Jun 2026).** Tyler confirmed the **inverse
+> presence-strength** view: the prospect sees higher = stronger. Internally the stored
+> number remains an *opportunity* score (high = weak business = hot prospect), so the
+> report inverts each presence category deterministically from the same stored
+> breakdown and the single weight table — not a second rubric. No dedicated
+> `presence_score` column is needed. (Tyler noted he is confirming with the end user,
+> but to proceed with this default.)
 
 ### B4. Files changed
 

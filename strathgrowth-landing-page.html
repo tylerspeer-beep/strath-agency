@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Strath Growth | Digital Marketing for UK Locksmiths</title>
+  <meta name="description" content="We build AI-powered websites and automated marketing systems exclusively for UK locksmiths. More calls. More reviews. More revenue." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #0f1f3d;
+      --navy-light: #1a3260;
+      --gold: #f5a623;
+      --gold-dark: #d4891a;
+      --white: #ffffff;
+      --off-white: #f8f9fc;
+      --grey: #6b7280;
+      --light-grey: #e5e7eb;
+      --text: #1f2937;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: var(--white);
+      line-height: 1.6;
+    }
+
+    /* NAV */
+    nav {
+      background: var(--navy);
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      color: var(--white);
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .nav-logo span { color: var(--gold); }
+    .nav-cta {
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 700;
+      font-size: 0.875rem;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--gold-dark); }
+
+    /* HERO */
+    .hero {
+      background: var(--navy);
+      color: var(--white);
+      padding: 80px 24px 90px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(245,166,35,0.15);
+      color: var(--gold);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      font-weight: 800;
+      line-height: 1.15;
+      max-width: 760px;
+      margin: 0 auto 20px;
+    }
+    .hero h1 span { color: var(--gold); }
+    .hero p {
+      font-size: 1.15rem;
+      color: rgba(255,255,255,0.75);
+      max-width: 560px;
+      margin: 0 auto 40px;
+    }
+    .hero-cta-group {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 16px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { background: var(--gold-dark); transform: translateY(-1px); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--white);
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 16px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+      border: 2px solid rgba(255,255,255,0.3);
+      transition: border-color 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--white); }
+    .hero-note {
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.45);
+    }
+
+    /* SOCIAL PROOF BAR */
+    .proof-bar {
+      background: var(--gold);
+      padding: 14px 24px;
+      text-align: center;
+    }
+    .proof-bar p {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    /* WHAT YOU GET */
+    .section {
+      padding: 80px 24px;
+    }
+    .section-inner {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--gold-dark);
+      margin-bottom: 12px;
+    }
+    .section h2 {
+      font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      color: var(--navy);
+    }
+    .section-subtitle {
+      font-size: 1.05rem;
+      color: var(--grey);
+      max-width: 580px;
+      margin-bottom: 56px;
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 28px;
+    }
+    .service-card {
+      background: var(--off-white);
+      border-radius: 12px;
+      padding: 32px 28px;
+      border: 1px solid var(--light-grey);
+    }
+    .service-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--navy);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+    }
+    .service-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 10px;
+    }
+    .service-card p {
+      font-size: 0.9rem;
+      color: var(--grey);
+      line-height: 1.65;
+    }
+
+    /* FOR WHO */
+    .for-who {
+      background: var(--navy);
+      color: var(--white);
+    }
+    .for-who .section-label { color: var(--gold); }
+    .for-who h2 { color: var(--white); }
+    .for-who .section-subtitle { color: rgba(255,255,255,0.65); }
+
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 18px 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .check-icon {
+      width: 22px;
+      height: 22px;
+      background: var(--gold);
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--navy);
+      font-weight: 800;
+      margin-top: 1px;
+    }
+    .check-item p {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.85);
+    }
+
+    .not-for {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin-top: 8px;
+    }
+    .not-for h4 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 12px;
+    }
+    .not-for p {
+      font-size: 0.875rem;
+      color: rgba(255,255,255,0.45);
+    }
+
+    /* HOW IT WORKS */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 32px;
+      counter-reset: steps;
+    }
+    .step {
+      counter-increment: steps;
+      position: relative;
+    }
+    .step-number {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: var(--white);
+      font-weight: 800;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+    .step h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .step p {
+      font-size: 0.875rem;
+      color: var(--grey);
+      line-height: 1.65;
+    }
+
+    /* PRICING */
+    .pricing {
+      background: var(--off-white);
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .pricing-card {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 36px 28px;
+      border: 2px solid var(--light-grey);
+      position: relative;
+    }
+    .pricing-card.featured {
+      border-color: var(--navy);
+    }
+    .featured-badge {
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--navy);
+      color: var(--white);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 4px 16px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .pricing-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--grey);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .price-note {
+      font-size: 0.8rem;
+      color: var(--grey);
+      margin-bottom: 24px;
+    }
+    .pricing-features {
+      list-style: none;
+      margin-bottom: 32px;
+    }
+    .pricing-features li {
+      font-size: 0.875rem;
+      color: var(--text);
+      padding: 8px 0;
+      border-bottom: 1px solid var(--light-grey);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pricing-features li::before {
+      content: "✓";
+      color: var(--gold-dark);
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+    .pricing-card .btn-primary {
+      display: block;
+      text-align: center;
+    }
+
+    /* CTA SECTION */
+    .cta-section {
+      background: var(--navy);
+      color: var(--white);
+      text-align: center;
+      padding: 90px 24px;
+    }
+    .cta-section h2 {
+      font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+      font-weight: 800;
+      margin-bottom: 18px;
+      color: var(--white);
+    }
+    .cta-section p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 40px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .cta-email {
+      color: var(--gold);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .cta-email:hover { text-decoration: underline; }
+
+    /* FOOTER */
+    footer {
+      background: #080f1f;
+      color: rgba(255,255,255,0.4);
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+    footer a { color: rgba(255,255,255,0.55); text-decoration: none; }
+    footer a:hover { color: var(--white); }
+
+    @media (max-width: 600px) {
+      .hero { padding: 56px 20px 64px; }
+      .section { padding: 60px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Strath<span>Growth</span></div>
+  <a href="mailto:tyler@strathgrowth.com" class="nav-cta">Get a Free Audit</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">UK Locksmith Digital Agency</div>
+  <h1>More Calls. More Reviews.<br><span>More Revenue.</span></h1>
+  <p>We build AI-powered websites and automated marketing systems exclusively for UK locksmiths. No contracts. No fluff.</p>
+  <div class="hero-cta-group">
+    <a href="mailto:tyler@strathgrowth.com" class="btn-primary">Book a Free Audit</a>
+    <a href="#how-it-works" class="btn-secondary">See How It Works</a>
+  </div>
+  <p class="hero-note">Free audit. No sales pressure. Honest timeframes — answered calls in weeks, Maps ranking over 1–3 months, reviews lift conversion straight away.</p>
+</section>
+
+<!-- PROOF BAR -->
+<div class="proof-bar">
+  <p>🔒 Built exclusively for UK locksmiths &nbsp;|&nbsp; Missed calls recovered automatically &nbsp;|&nbsp; Reviews on autopilot</p>
+</div>
+
+<!-- SERVICES -->
+<section class="section">
+  <div class="section-inner">
+    <p class="section-label">What We Do</p>
+    <h2>Everything your locksmith business needs to win online</h2>
+    <p class="section-subtitle">We don't do "general digital marketing." We've built one system, for one trade, and we've made it excellent.</p>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-icon">🌐</div>
+        <h3>AI-Ready Website</h3>
+        <p>A fast, mobile-first website built to rank locally and convert searchers into callers. Structured data included. Up in days, not weeks.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">📲</div>
+        <h3>Missed Call Text-Back</h3>
+        <p>Every missed call gets an instant automated text so no lead goes cold. Industry average recovery rate: 35–40%.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">⭐</div>
+        <h3>Review Automation</h3>
+        <p>After every job, your customer gets a personalised message asking for a Google review. More 5-stars without lifting a finger.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">📍</div>
+        <h3>Local SEO Setup</h3>
+        <p>Google Business Profile optimisation, local citations, and on-page SEO configured correctly so you rank where your customers search.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">📊</div>
+        <h3>Monthly Reporting</h3>
+        <p>Clear, plain-English reports covering calls, leads, reviews, and site traffic. You know exactly what's working and what isn't.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🤖</div>
+        <h3>AI Lead Follow-Up</h3>
+        <p>Enquiries from your site get followed up automatically with personalised messages — so you're first to respond, every time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOR WHO -->
+<section class="section for-who">
+  <div class="section-inner">
+    <p class="section-label">Who This Is For</p>
+    <h2>Built for the independent UK locksmith</h2>
+    <p class="section-subtitle">If any of these sound familiar, we can help — and the results come fast.</p>
+    <div class="checklist">
+      <div class="check-item"><div class="check-icon">✓</div><p>You're getting calls but missing some when you're on a job</p></div>
+      <div class="check-item"><div class="check-icon">✓</div><p>Your website is old, slow, or you're not sure it's ranking</p></div>
+      <div class="check-item"><div class="check-icon">✓</div><p>You have fewer than 40 Google reviews and want more</p></div>
+      <div class="check-item"><div class="check-icon">✓</div><p>You're 1–4 people and you can't afford to waste time on marketing admin</p></div>
+      <div class="check-item"><div class="check-icon">✓</div><p>You're in a city or suburb with real competition and want to stand out</p></div>
+      <div class="check-item"><div class="check-icon">✓</div><p>You want predictable leads without paying per-click every month</p></div>
+    </div>
+    <div class="not-for">
+      <h4>Not the right fit if...</h4>
+      <p>You're part of a national franchise, already have a dedicated marketing team, or are looking for a generic "do everything" agency. We specialise — that's why it works.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how-it-works">
+  <div class="section-inner">
+    <p class="section-label">The Process</p>
+    <h2>From zero to running in under 2 weeks</h2>
+    <p class="section-subtitle">We handle the technical setup so you don't have to. You keep doing the work you're good at.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Free Audit Call</h3>
+        <p>We review your current site, Google profile, and reviews. You'll know exactly where you're losing money before we spend a penny.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Build &amp; Configure</h3>
+        <p>We build your site, set up automations, and connect your phone number and Google Business Profile. Usually done in 5–7 days.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Go Live</h3>
+        <p>Your system goes live. Missed call recovery and review requests start working the same day. We handle any teething issues.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">4</div>
+        <h3>Grow Together</h3>
+        <p>Monthly reports, SEO improvements, and ongoing optimisation. We're your marketing team — you just focus on the jobs.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section pricing">
+  <div class="section-inner">
+    <p class="section-label">Transparent Pricing</p>
+    <h2>Simple pricing for independent locksmiths</h2>
+    <p class="section-subtitle">No hidden fees. No long contracts. Cancel any time after month one.</p>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h3>Setup Only</h3>
+        <div class="price">£397</div>
+        <p class="price-note">One-time payment</p>
+        <ul class="pricing-features">
+          <li>New AI-ready website</li>
+          <li>Missed call text-back</li>
+          <li>Google Business optimisation</li>
+          <li>Local SEO foundation</li>
+          <li>30-day support included</li>
+        </ul>
+        <a href="mailto:tyler@strathgrowth.com" class="btn-primary">Get Started</a>
+      </div>
+      <div class="pricing-card featured">
+        <div class="featured-badge">Most Popular</div>
+        <h3>Full Digital</h3>
+        <div class="price">£397<span style="font-size:1.1rem;font-weight:600">/mo</span></div>
+        <p class="price-note">Everything included, ongoing</p>
+        <ul class="pricing-features">
+          <li>Everything in Setup Only</li>
+          <li>Review request automation</li>
+          <li>AI lead follow-up</li>
+          <li>Monthly reporting</li>
+          <li>SEO management</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="mailto:tyler@strathgrowth.com" class="btn-primary">Book a Free Audit</a>
+      </div>
+      <div class="pricing-card">
+        <h3>Growth Retainer</h3>
+        <div class="price">£197<span style="font-size:1.1rem;font-weight:600">/mo</span></div>
+        <p class="price-note">For existing clients</p>
+        <ul class="pricing-features">
+          <li>Ongoing management</li>
+          <li>Monthly reporting</li>
+          <li>SEO updates</li>
+          <li>Automation monitoring</li>
+          <li>Strategy calls quarterly</li>
+        </ul>
+        <a href="mailto:tyler@strathgrowth.com" class="btn-primary">Get Started</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>Ready to stop missing calls and start winning online?</h2>
+  <p>Book a free 20-minute audit. We'll look at your current setup and tell you exactly what's costing you business — no obligation.</p>
+  <a href="mailto:tyler@strathgrowth.com" class="btn-primary" style="display:inline-block">Book Your Free Audit</a>
+  <p style="margin-top:24px;font-size:0.85rem;color:rgba(255,255,255,0.45)">
+    Or email us directly at <a href="mailto:tyler@strathgrowth.com" class="cta-email">tyler@strathgrowth.com</a>
+  </p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2026 Strath Growth Ltd &nbsp;|&nbsp; UK Digital Agency for Locksmiths &nbsp;|&nbsp; <a href="mailto:tyler@strathgrowth.com">tyler@strathgrowth.com</a></p>
+  <p style="margin-top:8px"><a href="#">Privacy Policy</a> &nbsp;|&nbsp; <a href="#">Terms</a> &nbsp;|&nbsp; Strath Growth Ltd, United Kingdom</p>
+</footer>
+
+</body>
+</html>

@@ -464,7 +464,7 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
   <!-- CTA -->
   <div class="cta-section">
     <h2>Ready to fix this?</h2>
-    <p>Strath Agency helps independent locksmiths dominate local search and AI results.<br>No long contracts. Results in 30 days or you don't pay.</p>
+    <p>Strath Agency helps independent locksmiths win more local jobs from Google Maps and reviews. No long contracts, and honest about timing: answered calls can climb within weeks and Maps ranking typically moves over 1–3 months (it's capped by how close you are to the searcher). Reviews lift conversion straight away; broader search visibility is a 6–12 month build.</p>
     <a class="cta-btn" href="https://api.leadconnectorhq.com/widget/booking/GwjL8MDjGNohuN6zEYZR" target="_blank" rel="noopener noreferrer">Book a Free Call</a>
   </div>
 
