@@ -374,6 +374,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Online Presence Report — ${businessName}</title>${leafletHead}
+  <link rel="icon" type="image/png" href="${esc(baseUrl)}/strath-monogram.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -626,7 +627,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
 <body>
 
 <div class="header">
-  <img class="crest" src="${esc(baseUrl)}/strath-crest.png" alt="Strath Agency crest" width="50" height="64">
+  <img class="crest" src="${esc(baseUrl)}/strath-crest-metallic.png" alt="Strath Agency crest" width="51" height="64">
   <div class="wordmark">Strath</div>
   <div class="brand">Prepared for</div>
   <h1>${businessName}</h1>
