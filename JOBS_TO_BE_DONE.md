@@ -187,7 +187,8 @@ Ordered. Each gate must pass before the next. No prospect is contacted in GHL un
       unchanged: Slate #15181C base (dark hero + close), Graphite surfaces, warm Stone/Paper
       body, British Racing Green CTA #1F4434 (hover #2E5C46), Honey #C19A52 as a single
       eyebrow highlight; Manrope (display/body) + JetBrains Mono (scores/labels) via Google
-      Fonts; served crest at `public/strath-crest.png` + wide-tracked STRATH wordmark. Data
+      Fonts; served **metallic 3D crest** at `public/strath-crest-metallic.png` (305×384, 182KB)
+      + monogram favicon `public/strath-monogram.png` + wide-tracked STRATH wordmark. Data
       tiers + Leaflet map pins unified to earthy green #2F7A56 / amber #C19A52 / brick #A4502E
       (single `DATA_*` source). Typecheck clean. Deployed to prod via `vercel --prod` (the
       `git push` to main did NOT auto-deploy — see F6). Smoke-tested live for a populated
