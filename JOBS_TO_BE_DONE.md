@@ -83,15 +83,44 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
 
 ## E. Visual proof / UX (approach DECIDED 9 Jun 2026)
 
-- [ ] **E1. Visual-proof approach — CONFIRMED** (M). Build the report's visual proof as
-      **live data cards + a free Google Maps embed**, explicitly **NOT stored screenshots**
-      and **NOT iframing the prospect's own site**:
-      - A branded **"Your Google listing" card** built from **Places API data**, referencing
-        **Google's hosted photo URL** (no images stored by us).
-      - A **map with pins** (free Google Maps embed) — not a screenshot.
-      - A **per-town rank layer** to come from a **SERP API (DataForSEO / Serper)** — being
-        **scoped in a separate thread**; wire it in once that scope lands.
-      Screenshots and site-iframing are explicitly ruled out (cost/infra + trust/legal).
+- [x] **E1. Visual-proof — BUILT 9 Jun 2026** (was M). Shipped in `api/report.ts`:
+      - **"Your Google listing" card** from stored Places data (name, rating, reviews,
+        category, claimed badge). Photo served via a **same-origin proxy**
+        (`/api/report?id=…&photo=1`) — Places Details→Photo fetched server-side and
+        streamed (CDN-cached `s-maxage=604800`), so the **API key never reaches the
+        client** (Google's photo URL embeds the key; "referenced directly" was not
+        possible without leaking it). No images stored.
+      - **Leaflet + OSM map** (no key/billing) with a pin per served town, coloured by
+        local-pack rank (green top-3 / amber 4–10 / red not-found) + headline
+        "Top 3 on Google Maps in X of Y towns you serve". Framed on the prospect's
+        OWN claimed towns (not a geo comparison).
+      - **Per-town rank layer:** `lib/town-rank.ts` (town extraction from homepage nav →
+        fallback to city+nearby; **Serper.dev** Maps query per town; rank by place_id
+        then name) + `api/town-rank-scan.ts` (CRON_SECRET-protected, `?id=` single /
+        `?batch=` fill-in). Cached in Neon `prospects.town_ranks` (migration_007) —
+        Serper hit **once per scan**, never per report view. Town centres geocoded free
+        via OSM Nominatim for the pins.
+      - **Graceful fallback verified:** prospects with no `town_ranks` (all 237 existing)
+        render with the map section + Leaflet includes fully hidden; the listing card
+        still shows. Typecheck clean; map JS syntax-checked; render asserted both states.
+      - **Brand note:** matched the *existing* report.ts card/typography system (the
+        brief's racing-green/honey/Manrope is the **new** package, see G3 — not built
+        yet). Rank pins use the report's existing green/amber/red status colours.
+      - Screenshots and site-iframing remain ruled out (cost/infra + trust/legal).
+- [ ] **E1a. Town-rank scan — schedule + scale** (S–M, follow-up to E1):
+  - [ ] Add a **periodic `town-rank-scan` cron** (e.g. weekly, `?batch=N`) for tier-A/audited
+        prospects so ranks stay fresh. Today it's run manually (`?id=`) or batch fill-in.
+  - [ ] **Town discovery v2:** extraction is a homepage-nav heuristic. Fold in `sitemap.xml`
+        / `site:domain` (ties to **A2** Serper) and **town-page-pattern detection (A3)** —
+        "many town links → one `/contact`" is itself a sharp finding to surface on the map.
+  - [ ] **Serper keyword** is fixed to `"auto locksmith"`; vary by the prospect's actual
+        service focus once auto-focus classification is trusted.
+  - [ ] **Nominatim** town-centre geocoding is fine at current volume (≤8/scan, 1 req/s).
+        If scaled, cache town→coords (they don't change) or move to a paid geocoder.
+- [ ] **E1b. Listing-photo cost** (S, follow-up to E1) — the photo proxy makes **2 Google
+      Places calls** (Details→Photo) on the first uncached load per prospect (then CDN-cached
+      `s-maxage=604800`). To halve it, store `gbp_photo_reference` at **scout** time (one
+      Details `photos` field) and skip the per-view Details call. Monitor Places spend.
 - [ ] **E2. Founder bio/photo + Car Key Kings proof** (S–M) — one founder line + photo and
       a real client outcome (Car Key Kings) for cold-prospect trust. Needs a real,
       quotable outcome — confirm the numbers before publishing.
@@ -105,8 +134,10 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       `GHL-Build-Debrief.md`, `Car Key Kings — Workflow Build Guide.md`,
       `deploy-locksmith-template.md`, `tool-registry-patch.md`) live only in the Drive
       master, not GitHub. Review for hardcoded secrets, then commit the clean ones.
-- [ ] **F2. Fix pre-existing scout TS errors** (S, optional) — `prospect-scout.ts`
-      `resolveEntity().catch(...)` fallback type; `tsc` trips on it. (§A8)
+- [x] **F2. Fix pre-existing scout TS errors** — **DONE 9 Jun 2026** (alongside E1, to land
+      a clean `tsc --noEmit` before the report commit). `prospect-scout.ts` now types the
+      `resolveEntity().catch()` fallback as `EntityResolution` (`{ entityType:'Unknown',
+      confidence:'not_found' }`). Whole project typechecks clean.
 - [ ] **F3. Pre-go-live hardening** (S) — from the (now-archived) Execution Guide V1:
       run `npm audit fix` on the MCP server and review high-severity items; add `@types/node`
       to the prospecting-engine devDeps/tsconfig so `tsc` runs clean (ties to F2). Do before

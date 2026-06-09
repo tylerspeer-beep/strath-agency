@@ -93,6 +93,7 @@ function rowToProspect(row: Record<string, any>): Prospect {
     nearestCompetitor:     row.nearest_competitor ?? undefined,
     observation1:          row.observation_1 ?? undefined,
     observation2:          row.observation_2 ?? undefined,
+    townRanks:             row.town_ranks ?? undefined,
     duplicateOfPlaceId:    row.duplicate_of_place_id ?? undefined,
     ghlContactId:          row.ghl_contact_id ?? undefined,
     ghlOpportunityId:      row.ghl_opportunity_id ?? undefined,
@@ -374,6 +375,22 @@ export async function updateProspectAudit(
   `;
 }
 
+// Persist a per-town map-rank scan (Serper) for the report visual. Stored as JSONB
+// so the report renders from cache — Serper is hit once per scan, never per view.
+export async function updateProspectTownRanks(
+  prospectId: string,
+  scan: object
+): Promise<void> {
+  const sql = getDb();
+  await sql`
+    UPDATE prospects SET
+      town_ranks            = ${JSON.stringify(scan)}::jsonb,
+      town_ranks_scanned_at = now(),
+      updated_at            = now()
+    WHERE id = ${prospectId}
+  `;
+}
+
 // ── Scout run logging ─────────────────────────────────────────────────────────
 
 export async function logScoutRun(data: {
@@ -428,6 +445,32 @@ export async function getProspectsPendingAudit(limit = 10): Promise<Prospect[]> 
       AND COALESCE(raw_score, icp_score, 0) >= 40
       AND website_url IS NOT NULL
     ORDER BY COALESCE(raw_score, icp_score, 0) DESC
+    LIMIT ${limit}
+  `;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (rows as Record<string, any>[]).map(rowToProspect);
+}
+
+// ── Single prospect by id ─────────────────────────────────────────────────────
+export async function getProspectById(id: string): Promise<Prospect | null> {
+  const sql = getDb();
+  const rows = await sql`SELECT * FROM prospects WHERE id = ${id} LIMIT 1`;
+  if (rows.length === 0) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rowToProspect(rows[0] as Record<string, any>);
+}
+
+// ── Prospects needing a town-rank scan ────────────────────────────────────────
+// Audited/discovered prospects (score >= 40) that have not yet had a Serper map-rank
+// scan. Used by /api/town-rank-scan?batch=N. Skips suppressed/flagged records.
+export async function getProspectsNeedingTownRankScan(limit = 5): Promise<Prospect[]> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM prospects
+    WHERE town_ranks IS NULL
+      AND COALESCE(icp_score, raw_score, 0) >= 40
+      AND status NOT IN ('do_not_contact', 'flagged')
+    ORDER BY COALESCE(icp_score, raw_score, 0) DESC
     LIMIT ${limit}
   `;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

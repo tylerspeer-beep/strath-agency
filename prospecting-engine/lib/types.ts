@@ -1,6 +1,8 @@
 // Strath Agency — Prospect Engine Types
 // Shared across scout, audit, and sync modules.
 
+import type { TownRankScan } from './town-rank.js';
+
 // ─── CORE PROSPECT ───────────────────────────────────────────────────────────
 
 export type EntityType = 'Ltd' | 'Sole Trader' | 'Partnership' | 'Unknown';
@@ -115,6 +117,9 @@ export interface Prospect {
   nearestCompetitor?: string;
   observation1?: string;
   observation2?: string;
+
+  // Per-town map-rank scan (Serper local pack) — cached for the report visual.
+  townRanks?: TownRankScan;
 
   // Dedup
   duplicateOfPlaceId?: string;  // place_id of the original when this was suppressed

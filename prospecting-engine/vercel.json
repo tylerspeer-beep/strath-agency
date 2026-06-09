@@ -19,6 +19,9 @@
     "api/backfill-ghl-contacts.ts": {
       "maxDuration": 60
     },
+    "api/town-rank-scan.ts": {
+      "maxDuration": 60
+    },
     "api/report.ts": {
       "maxDuration": 10
     }

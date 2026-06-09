@@ -35,7 +35,7 @@ import {
   classifyAutoFocus,
   AUTO_FOCUSED_KEYWORDS,
 } from '../lib/scoring.js';
-import { resolveEntity } from '../lib/companies-house.js';
+import { resolveEntity, type EntityResolution } from '../lib/companies-house.js';
 import {
   createGhlClient,
   GHL,
@@ -378,7 +378,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           undefined,
           city,
           chApiKey
-        ).catch(() => ({ entityType: 'Unknown' as const, confidence: 'not_found' as const }));
+        ).catch((): EntityResolution => ({ entityType: 'Unknown', confidence: 'not_found' }));
 
         // ICP raw score — tier is NOT assigned here, audit cron does that.
         // Entity is NOT scored (compliance/contactability only — see whatsappEligible below).

@@ -83,8 +83,213 @@ function scoreBar(score: number, max: number, color: string): string {
   return `<div class="score-bar-bg"><div class="score-bar-fill" style="width:${pct}%;background:${color}"></div></div>`;
 }
 
+// ── HTML escaping (anything that lands inside markup or an attribute) ──────────
+function esc(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ── Place photo proxy ─────────────────────────────────────────────────────────
+// Resolves a prospect's GBP photo via Places Details → Place Photo, streaming the
+// bytes so the API key stays server-side. Cached at the CDN (s-maxage) to bound
+// the 2-call cost per photo. Returns 404 on any miss (image hides gracefully).
+async function streamPlacePhoto(res: VercelResponse, placeId: string | null): Promise<void> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey || !placeId) {
+    res.status(404).end();
+    return;
+  }
+  try {
+    const detailsUrl =
+      `https://maps.googleapis.com/maps/api/place/details/json` +
+      `?place_id=${encodeURIComponent(placeId)}&fields=photos&key=${apiKey}`;
+    const dRes = await fetch(detailsUrl, { signal: AbortSignal.timeout(7000) });
+    const dData = (await dRes.json()) as {
+      result?: { photos?: { photo_reference: string }[] };
+      status: string;
+    };
+    const ref = dData.result?.photos?.[0]?.photo_reference;
+    if (!ref) {
+      res.status(404).end();
+      return;
+    }
+    const photoUrl =
+      `https://maps.googleapis.com/maps/api/place/photo` +
+      `?maxwidth=800&photo_reference=${encodeURIComponent(ref)}&key=${apiKey}`;
+    const pRes = await fetch(photoUrl, { signal: AbortSignal.timeout(7000) }); // follows redirect to googleusercontent
+    if (!pRes.ok || !pRes.body) {
+      res.status(404).end();
+      return;
+    }
+    res.setHeader('Content-Type', pRes.headers.get('content-type') ?? 'image/jpeg');
+    // CDN-cache the resolved image for a week so repeat opens don't re-hit Google.
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+    const buf = Buffer.from(await pRes.arrayBuffer());
+    res.status(200).end(buf);
+  } catch (err) {
+    console.error('[report] photo proxy failed:', err);
+    res.status(404).end();
+  }
+}
+
+// ── "Your Google listing" card (from Places data we already store) ─────────────
+// Renders the branded listing card: name, rating, reviews, category, claimed badge
+// and the GBP photo (via the same-origin proxy above). Shown whenever we have any
+// GBP signal; independent of town-rank data.
+function renderListingCard(p: Record<string, unknown>, photoUrl: string): string {
+  const name        = String(p.business_name ?? 'Your Business');
+  const rating      = p.gbp_rating != null ? Number(p.gbp_rating) : null;
+  const reviews     = p.gbp_review_count != null ? Number(p.gbp_review_count) : null;
+  const gbpStatus   = String(p.gbp_status ?? 'Unknown');
+  const gbpUrl      = p.gbp_url ? String(p.gbp_url) : null;
+  const cats        = Array.isArray(p.gbp_categories) ? (p.gbp_categories as string[]) : [];
+
+  // Prettify the primary GBP category ('locksmith' → 'Locksmith'), default sensibly.
+  const primaryCat = cats.find((c) => c && c !== 'point_of_interest' && c !== 'establishment');
+  const category = primaryCat
+    ? primaryCat.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase())
+    : 'Locksmith';
+
+  const claimed = gbpStatus !== 'Unclaimed' && gbpStatus !== 'Unknown';
+  const claimedBadge = claimed
+    ? `<span class="gl-badge gl-badge-ok">✓ Claimed</span>`
+    : `<span class="gl-badge gl-badge-warn">Unclaimed</span>`;
+
+  const initial = esc(name.trim().charAt(0).toUpperCase() || 'B');
+
+  // Star row (rounded to nearest half not needed — show numeric + filled stars).
+  let stars = '';
+  if (rating !== null) {
+    const full = Math.round(rating);
+    stars = '★★★★★'.slice(0, full) + '<span class="gl-star-empty">' + '★★★★★'.slice(full) + '</span>';
+  }
+
+  return `
+  <div class="card gl-card">
+    <div class="card-title">Your Google listing</div>
+    <div class="gl-row">
+      <div class="gl-photo">
+        <div class="gl-photo-fallback">${initial}</div>
+        <img src="${esc(photoUrl)}" alt="${esc(name)} on Google" loading="lazy"
+             onload="this.style.opacity=1" onerror="this.remove()">
+      </div>
+      <div class="gl-body">
+        <div class="gl-name">${esc(name)}</div>
+        <div class="gl-cat">${esc(category)}</div>
+        ${rating !== null ? `
+        <div class="gl-rating">
+          <span class="gl-stars">${stars}</span>
+          <span class="gl-rating-num">${rating.toFixed(1)}</span>
+          ${reviews !== null ? `<span class="gl-reviews">(${reviews} review${reviews === 1 ? '' : 's'})</span>` : ''}
+        </div>` : (reviews !== null ? `<div class="gl-rating"><span class="gl-reviews">${reviews} review${reviews === 1 ? '' : 's'}</span></div>` : '')}
+        <div class="gl-meta">${claimedBadge}${gbpUrl ? ` <a class="gl-link" href="${esc(gbpUrl)}" target="_blank" rel="noopener noreferrer">View on Google&nbsp;›</a>` : ''}</div>
+      </div>
+    </div>
+    <p class="gl-note">This is how ${esc(name)} appears to customers searching on Google. It is the first thing most people see — and the asset that captures local jobs.</p>
+  </div>`;
+}
+
+// ── "Where you rank on the map" section (Leaflet + OSM, from cached town_ranks) ─
+// Pin per served town, coloured by local-pack rank (green top-3, amber 4–10, red
+// not found). Framed neutrally against the prospect's OWN claimed towns. Returns
+// { section, needsLeaflet } — the head include is added only when a map is shown.
+interface TownRankRow {
+  town: string; lat: number | null; lng: number | null;
+  rank: number | null; found: boolean; topResult: string | null;
+}
+interface TownRankScanRow {
+  towns?: TownRankRow[]; totalTowns?: number; foundCount?: number; topThreeCount?: number;
+}
+
+function renderRankMap(p: Record<string, unknown>): { section: string; needsLeaflet: boolean } {
+  const tr = p.town_ranks as TownRankScanRow | null | undefined;
+  const towns = Array.isArray(tr?.towns) ? tr!.towns! : [];
+  if (!tr || towns.length === 0) {
+    return { section: '', needsLeaflet: false };
+  }
+
+  const total = tr.totalTowns ?? towns.length;
+  const topThree = tr.topThreeCount ?? towns.filter((t) => t.rank !== null && t.rank <= 3).length;
+  const businessName = String(p.business_name ?? 'your business');
+
+  // Only towns we could geocode get a pin; the rest still appear in the list below.
+  const pinData = towns
+    .filter((t) => typeof t.lat === 'number' && typeof t.lng === 'number')
+    .map((t) => ({ town: t.town, lat: t.lat, lng: t.lng, rank: t.rank }));
+
+  const rankColor = (rank: number | null) =>
+    rank === null ? '#ef4444' : rank <= 3 ? '#10b981' : rank <= 10 ? '#f59e0b' : '#ef4444';
+
+  // Text list (accessible + a fallback when JS/coords are unavailable).
+  const list = towns.map((t) => {
+    const c = rankColor(t.rank);
+    const label = t.rank === null ? 'Not in the top results' : `Ranks #${t.rank}`;
+    return `
+    <div class="rk-row">
+      <span class="rk-dot" style="background:${c}"></span>
+      <span class="rk-town">${esc(t.town)}</span>
+      <span class="rk-rank" style="color:${c}">${esc(label)}</span>
+    </div>`;
+  }).join('');
+
+  const headline = total > 0
+    ? `Top 3 on Google Maps in <strong>${topThree} of ${total}</strong> ${total === 1 ? 'town' : 'towns'} you serve`
+    : '';
+
+  const section = `
+  <div class="card">
+    <div class="card-title">Where you rank on the map</div>
+    <p style="font-size:13px;color:#64748b;margin-bottom:16px">
+      For each town ${esc(businessName)} serves, this is where the business currently
+      sits in Google's Maps results for a typical "auto locksmith" search. Green is a
+      top-3 spot (where most clicks go), amber is 4–10, red means not showing in the
+      top results yet.
+    </p>
+    ${headline ? `<div class="rk-headline">${headline}</div>` : ''}
+    <div id="rankmap" class="rk-map"></div>
+    <div class="rk-legend">
+      <span><span class="rk-dot" style="background:#10b981"></span>Top 3</span>
+      <span><span class="rk-dot" style="background:#f59e0b"></span>4–10</span>
+      <span><span class="rk-dot" style="background:#ef4444"></span>Not found</span>
+    </div>
+    <div class="rk-list">${list}</div>
+  </div>
+  <script>
+    (function(){
+      var towns = ${JSON.stringify(pinData)};
+      if (!window.L || !towns.length) return;
+      function color(r){ return r===null ? '#ef4444' : r<=3 ? '#10b981' : r<=10 ? '#f59e0b' : '#ef4444'; }
+      function label(r){ return r===null ? '—' : '#'+r; }
+      var map = L.map('rankmap', { scrollWheelZoom: false, attributionControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      var bounds = [];
+      towns.forEach(function(t){
+        var c = color(t.rank);
+        var icon = L.divIcon({
+          className: 'rk-pin',
+          html: '<div class="rk-pin-inner" style="background:'+c+'">'+label(t.rank)+'</div>',
+          iconSize: [34, 34], iconAnchor: [17, 17]
+        });
+        L.marker([t.lat, t.lng], { icon: icon })
+          .addTo(map)
+          .bindPopup('<strong>'+t.town+'</strong><br>'+(t.rank===null ? 'Not in the top results' : 'Ranks #'+t.rank));
+        bounds.push([t.lat, t.lng]);
+      });
+      if (bounds.length === 1) { map.setView(bounds[0], 11); }
+      else { map.fitBounds(bounds, { padding: [30, 30] }); }
+    })();
+  </script>`;
+
+  return { section, needsLeaflet: true };
+}
+
 // ── Report HTML ───────────────────────────────────────────────────────────────
-function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
+// Exported for render tests (api handler calls it directly below).
+export function renderReport(p: Record<string, unknown>, trackingUrl: string, baseUrl: string): string {
   const businessName = String(p.business_name ?? 'Your Business');
   const city         = String(p.city ?? '');
   const websiteUrl   = p.website_url ? String(p.website_url) : null;
@@ -146,12 +351,22 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
 
   const now = new Date().getFullYear();
 
+  // Visual-proof sections (Places listing card + Leaflet/OSM rank map).
+  const photoUrl = `${baseUrl}/api/report?id=${esc(p.id)}&photo=1`;
+  const listingCard = renderListingCard(p, photoUrl);
+  const { section: rankMapSection, needsLeaflet } = renderRankMap(p);
+  const leafletHead = needsLeaflet ? `
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Online Presence Report — ${businessName}</title>
+  <title>Online Presence Report — ${businessName}</title>${leafletHead}
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -287,9 +502,61 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
     }
     .cta-btn:hover { background: #2563eb; }
     .footer { text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px; }
+
+    /* ── Your Google listing card ── */
+    .gl-row { display: flex; gap: 18px; align-items: stretch; }
+    .gl-photo {
+      position: relative; width: 120px; height: 120px; flex-shrink: 0;
+      border-radius: 10px; overflow: hidden; background: #0f172a;
+    }
+    .gl-photo-fallback {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 44px; font-weight: 800; color: #475569; background: #e2e8f0;
+    }
+    .gl-photo img {
+      position: relative; width: 100%; height: 100%; object-fit: cover;
+      opacity: 0; transition: opacity 0.4s ease;
+    }
+    .gl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .gl-name { font-size: 18px; font-weight: 700; color: #0f172a; }
+    .gl-cat { font-size: 13px; color: #64748b; margin-bottom: 8px; }
+    .gl-rating { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .gl-stars { color: #f59e0b; font-size: 15px; letter-spacing: 1px; }
+    .gl-star-empty { color: #cbd5e1; }
+    .gl-rating-num { font-weight: 700; color: #0f172a; font-size: 14px; }
+    .gl-reviews { font-size: 13px; color: #64748b; }
+    .gl-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .gl-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .gl-badge-ok { background: #dcfce7; color: #16a34a; }
+    .gl-badge-warn { background: #fee2e2; color: #dc2626; }
+    .gl-link { font-size: 13px; color: #3b82f6; text-decoration: none; font-weight: 600; }
+    .gl-note { font-size: 13px; color: #64748b; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f1f5f9; }
+
+    /* ── Rank map ── */
+    .rk-headline {
+      font-size: 16px; color: #0f172a; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+    }
+    .rk-map { height: 320px; width: 100%; border-radius: 10px; overflow: hidden; z-index: 0; background: #e2e8f0; }
+    .rk-legend { display: flex; gap: 18px; font-size: 12px; color: #64748b; margin: 12px 0 4px; }
+    .rk-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .rk-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .rk-list { margin-top: 8px; }
+    .rk-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f8fafc; font-size: 14px; }
+    .rk-row:last-child { border-bottom: none; }
+    .rk-town { flex: 1; color: #334155; }
+    .rk-rank { font-weight: 700; font-size: 13px; }
+    .rk-pin-inner {
+      width: 30px; height: 30px; border-radius: 50%; color: white; font-weight: 700;
+      font-size: 12px; display: flex; align-items: center; justify-content: center;
+      border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+
     @media (max-width: 480px) {
       .card { padding: 20px 16px; }
       .score-label { width: 110px; font-size: 13px; }
+      .gl-row { flex-direction: column; }
+      .gl-photo { width: 100%; height: 160px; }
     }
   </style>
 </head>
@@ -309,6 +576,12 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
     ${obs1 ? `<div class="obs-box critical"><strong>Finding 1:</strong> ${obs1.charAt(0).toUpperCase() + obs1.slice(1)}.</div>` : ''}
     ${obs2 ? `<div class="obs-box"><strong>Finding 2:</strong> ${obs2.charAt(0).toUpperCase() + obs2.slice(1)}.</div>` : ''}
   </div>` : ''}
+
+  <!-- Your Google listing (Places data) -->
+  ${listingCard}
+
+  <!-- Where you rank on the map (cached Serper town ranks; hidden when none) -->
+  ${rankMapSection}
 
   <!-- Website Analysis -->
   <div class="card">
@@ -506,11 +779,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rows = await sql`
       SELECT
         id, business_name, city, website_url,
-        gbp_rating, gbp_review_count, gbp_status,
+        gbp_rating, gbp_review_count, gbp_status, gbp_url, gbp_categories,
+        google_place_id, phone,
         icp_score, raw_score, icp_tier, score_breakdown,
         has_schema, has_faq, mobile_optimised, has_title_tag, has_h1,
         website_status, agency_watermark,
         observation_1, observation_2, nearest_competitor,
+        town_ranks,
         ghl_contact_id,
         report_first_opened_at, report_open_count,
         entity_type
@@ -555,11 +830,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    // Photo-proxy mode — stream the prospect's Google Business Profile photo.
+    // The Places Photo URL embeds GOOGLE_PLACES_API_KEY, so it must NEVER reach the
+    // client. We fetch it server-side and stream the bytes (we do not store the image).
+    // Graceful: any miss returns 404 so the report's <img onerror> hides cleanly.
+    if (req.query.photo === '1') {
+      await streamPlacePhoto(res, prospect.google_place_id ? String(prospect.google_place_id) : null);
+      return;
+    }
+
     // Full report mode
     const baseUrl = process.env.REPORT_BASE_URL ?? `https://${req.headers.host}`;
     const trackingUrl = `${baseUrl}/api/report?id=${id}&px=1`;
 
-    const html = renderReport(prospect, trackingUrl);
+    const html = renderReport(prospect, trackingUrl, baseUrl);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
