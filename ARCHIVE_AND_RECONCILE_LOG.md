@@ -57,16 +57,15 @@ captured** in `CLAUDE.md` §4 (Railway/MCP) and §13 (MCP schema). The one forwa
 not clearly captured — **pre-go-live hardening** (`npm audit fix` on the MCP server; add
 `@types/node` so `tsc` runs clean) — was pulled into **`JOBS_TO_BE_DONE.md` F3**. Safe to archive.
 
-## 6. Stale references flagged (NOT edited — gitignored binaries/config)
+## 6. Stale strings — FIXED to canonical (Tyler approved)
 
-| File | Stale content | Canonical |
-|------|---------------|-----------|
-| `locksmith-template-config.json:86,89` | Field **"Business Entity Type"** with option **"Ltd Company"** | CLAUDE.md §15: **"Entity Type"** with **"Ltd"** |
-| `locksmith-template-config.json:20` | **"Private Individual"** (singular) / **"Commerce"** | §15: **"Private Individuals"** / **"Commercial"** |
-| `Strath Agency Playbook V2.0.docx:83` | Refers to companion **"Strath Outreach Sequences V1"** | Canonical outreach = **"Strath Outreach Sequences V2"** (CLAUDE.md §16) |
+| File | Was | Now |
+|------|-----|-----|
+| `locksmith-template-config.json` entity field | **"Business Entity Type"** / `contact.business_entity_type` / **"Ltd Company"** | **"Entity Type"** / `contact.entity_type` / **"Ltd"** (+ note reframed to compliance/contactability) |
+| `locksmith-template-config.json` trade-type note | **"Private Individual"** / **"Commerce"** | **"Private Individuals"** / **"Commercial"** (picklist options were already canonical) |
+| `Strath Agency Playbook V2.0.docx` | companion **"Strath Outreach Sequences V1"** | **"…Sequences V2"** — done via targeted in-place docx edit (single contiguous string; zip integrity verified) |
 
-These live in gitignored files; left unedited pending your go-ahead (config is build-tool input;
-Playbook is a binary). Say the word and I'll correct the config strings.
+Both files are gitignored (Drive master only) — edits land on Drive, not GitHub.
 
 ## 7. Dangling references to moved files (informational — files persist in ARCHIVE/)
 
@@ -76,35 +75,42 @@ Setup Brief / Execution Guide remain in: `docs/AUDIT_RECONCILIATION.md` (§A10.3
 `CLAUDE.md` provenance footer. Content stays accurate and the files still exist in `ARCHIVE/`,
 so nothing is broken — left as-is to avoid churn.
 
-## 8. PROPOSED for archive — awaiting Tyler's confirmation (NOT moved)
+## 8. Archive candidates — Tyler's decision: KEEP all (do NOT archive)
 
-| Candidate | Why propose | Keep-if |
-|-----------|-------------|---------|
-| `tool-registry-patch.md` (root) | Superseded by `tool-registry-schema-patch/` + CLAUDE.md §13 documents the fix | keep if you still want the standalone patch note |
-| `deploy-locksmith-template.md` (root) | Superseded by the JTBD **G1** template-build sequence | keep if it has deploy steps not in JTBD |
-| `Car Key Kings — Workflow Build Guide.md` (root) | CKK not built; pre-build guide | keep if it's the spec you'll build CKK from |
-| `Strath GHL Workflow Build Guide — Prospecting Engine — 23 May 2026.docx` (root) | Pre-build workflow guide | keep if still the build reference |
-| `Strath_Cloud_Architecture_V1.1 (1).docx` (root) | Superseded by live infra map (CLAUDE.md §9) | keep if it has detail not in §9 |
+Tyler ruled these stay in place — they describe value not yet implemented and will be
+referenced during the Template + CKK builds, **then** archived (JTBD **F4**).
 
-**Kept (not proposed):** `Strath Agency Playbook V2.0.docx` (current offer doc),
-`Strath Research Foundation — 27 April 2026.docx` (still-useful market data),
+| File | Decision |
+|------|----------|
+| `tool-registry-patch.md` (root) | **Keep** — mine during builds, then archive (F4) |
+| `deploy-locksmith-template.md` (root) | **Keep** — mine during builds, then archive (F4) |
+| `Car Key Kings — Workflow Build Guide.md` (root) | **Keep** — CKK build reference, then archive (F4) |
+| `Strath GHL Workflow Build Guide — Prospecting Engine — 23 May 2026.docx` (root) | **Keep** — build reference, then archive (F4) |
+| `Strath_Cloud_Architecture_V1.1 (1).docx` (root) | **Keep, do NOT archive.** ⚠️ **CLAUDE.md §9 is the canonical infrastructure map** — reconcile this docx to §9 (or note the contradictions). Tracked as JTBD **F5**. |
+
+**Kept (not proposed):** `Strath Agency Playbook V2.0.docx` (current offer doc — V1 outreach
+reference fixed to V2 this pass), `Strath Research Foundation — 27 April 2026.docx` (market data),
 `Strath Outreach Sequences V2 - 27 April 2026.docx` (canonical outreach).
 
 ---
 
-## JTBD items added this pass
+## 9. Scoring change APPLIED (Tyler approved) — entity → compliance/contactability
 
-C2 (entity reframe → compliance/contactability, proposed change + tier-math flag) ·
-C3 (Companies House contactability assessment) · E1 (visual-proof: data cards + Maps embed,
-no screenshots/iframe; per-town SERP rank layer scoped separately) · F3 (pre-go-live hardening) ·
-G1–G6 (template build → SMS/workflows/8-stage pipeline/Snapshot → clone CKK beta + site →
-strathgrowth rebuild + GHL load + launch → refine Tier A audit doc → TEST outreach → agent swarm) ·
-D1 confirmed (guarantee removed everywhere, verified) · WhatsApp note (manual-only per GDPR,
-prospecting workflow not audit page).
+Implemented the C2 reframe in code + docs (commit this pass):
+- `scoring.ts`: removed `entity` from the score; the 6 remaining categories (raw max **90**)
+  are normalised `round(raw/90×100)` → 0–100, tiers/labels unchanged. Added `isWhatsappEligible()`.
+- `scout` + `backfill`: set `whatsappEligible` from `entityType` → GHL **"WhatsApp Eligible"**
+  (`s9lNKRXq6aVdriqzVxlP`, CHECKBOX "Yes"); persisted to Neon `whatsapp_eligible` (insertProspect).
+- `audit`: dropped `entityType` from its re-score.
+- `types.ts`/CLAUDE.md §16–17/AUDIT_RECONCILIATION §B updated.
+- **Tier-math before/after:** all five documented example profiles stay in the same tier;
+  Ltd businesses just lose the old +5 desirability edge. Not material. Typecheck clean
+  (only the pre-existing scout `companiesHouseNumber` errors remain — JTBD F2).
 
-## Awaiting Tyler's confirmation
+## Resolutions (this round)
 
-1. **Entity-signal scoring change** (C2) — apply the proposed move out of the 0–100 score? (shifts tier math)
-2. **Proposed-archive list** (§8) — move any of those five?
-3. **Config string fixes** (§6) — correct `locksmith-template-config.json` to canonical strings?
-4. **Google-native `CLAUDE.md.gdoc`** (§3) — remove/archive the stale cloud copy in Drive.
+1. **Entity-signal scoring change** — ✅ APPROVED & **implemented** (see §9).
+2. **Archive candidates** (§8) — ✅ Tyler: **keep all**; mine during builds then archive (JTBD F4);
+   Cloud Architecture reconciled to §9, not archived (JTBD F5).
+3. **Config string fixes** (§6) — ✅ **done** (config + Playbook).
+4. **Google-native `CLAUDE.md.gdoc`** (§3) — Tyler will remove the stale cloud copy in Drive himself. **Left untouched.**

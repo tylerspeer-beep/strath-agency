@@ -22,16 +22,17 @@ export type ProspectStatus =
 
 // GBP-first weights. Source of truth: SCORE_WEIGHTS in scoring.ts.
 // Presence categories (reviews, gbp, website, phone) are surfaced in the prospect
-// report; fit categories (entity, urban, notFranchise) are internal ICP qualifiers.
+// report; fit categories (urban, notFranchise) are internal ICP qualifiers.
+// Entity is NOT scored — it is a compliance/contactability signal (WhatsApp/text
+// eligibility under PECR), handled via isWhatsappEligible(), not this breakdown.
 export interface ScoreBreakdown {
   reviews: number;      // max 30  (presence)
   gbp: number;          // max 25  (presence)
   website: number;      // max 12  (presence)
   phone: number;        // max 8   (presence — v1 contactability only)
-  entity: number;       // max 10  (fit)
   urban: number;        // max 8   (fit)
   notFranchise: number; // max 7   (fit)
-  total: number;        // max 100
+  total: number;        // 0–100 (raw sum of the 6 categories, normalised from /90)
 }
 
 export interface Prospect {

@@ -228,13 +228,22 @@ phone) dominate; the website is a support signal (~12%).
 | Website (support) | **12** | `None → 12` · `Basic/Old → 10` · `Modern → 5` · `Optimised → 1` | `website_status` (Basic/Old at scout; upgraded by audit) | `score_breakdown.website` |
 | Phone / contactability | **8** | `no public phone → 8` · `reachable phone → 0` | `hasPhone` (GBP or website-recovered) | `score_breakdown.phone` |
 
-**Fit categories — internal ICP qualifiers, never shown to the prospect (max 25):**
+**Fit categories — internal ICP qualifiers, never shown to the prospect (max 15):**
 
 | Signal | Max | Bands | Where stored |
 |--------|-----|-------|--------------|
-| Entity (Ltd) | **10** | `Ltd → 10` · else `5` | `score_breakdown.entity` |
 | Urban / proximity | **8** | `urban → 8` · else `0` | `score_breakdown.urban` |
 | Not franchise | **7** | `independent → 7` · `franchise/aggregator → 0` | `score_breakdown.notFranchise` |
+
+**Entity (Ltd) — NOT scored (changed 9 Jun 2026).** Per Tyler's decision, the entity signal
+is a **compliance/contactability** flag, not a desirability weight. `scoreProspect` no longer
+takes `entityType`; `isWhatsappEligible(entityType)` drives the GHL "WhatsApp Eligible" field
+(`s9lNKRXq6aVdriqzVxlP`), written by the scout and persisted to Neon `whatsapp_eligible`.
+
+**Normalisation:** the 6 scored categories sum to a raw max of **90**; the stored score is
+`round(raw / 90 × 100)` so the scale stays a reachable **0–100** and the tier thresholds/labels
+stay valid. **Before/after:** on all five documented example profiles the tier is unchanged —
+Ltd businesses simply lose the old +5 desirability edge. Not a material tier shift.
 
 **Tiers (unchanged — preserves GHL option strings + Neon indexes):**
 A = 70+, B = 40–69, C = <40.

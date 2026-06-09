@@ -28,6 +28,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   scoreProspect,
+  isWhatsappEligible,
   classifyWebsiteStatus,
   classifyGbpStatus,
   isUrbanCity,
@@ -379,16 +380,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           chApiKey
         ).catch(() => ({ entityType: 'Unknown' as const, confidence: 'not_found' as const }));
 
-        // ICP raw score — tier is NOT assigned here, audit cron does that
+        // ICP raw score — tier is NOT assigned here, audit cron does that.
+        // Entity is NOT scored (compliance/contactability only — see whatsappEligible below).
         const { score, breakdown } = scoreProspect({
           gbpReviewCount: details.user_ratings_total,
           websiteStatus,
           gbpStatus,
-          entityType: entityResolution.entityType,
           isUrban,
           franchiseFlag: false,
           hasPhone: !!rawPhone,
         });
+
+        // Compliance/contactability flag (PECR): confirmed Ltd/LLP → text/WhatsApp
+        // eligible; sole trader/unknown → email only. Written to the GHL "WhatsApp
+        // Eligible" field, not the ICP score.
+        const whatsappEligible = isWhatsappEligible(entityResolution.entityType);
 
         // Raw score counters (for run log — using same thresholds as before for tracking)
         if (score >= 70)       tierACnt++;
@@ -423,6 +429,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           entityType: entityResolution.entityType,
           companiesHouseNumber: entityResolution.companiesHouseNumber,
           companiesHouseName: entityResolution.companiesHouseName,
+          whatsappEligible,
           websiteStatus,
           franchiseFlag: false,
           rawScore: score,
@@ -463,6 +470,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               gbpUrl: details.url,
               entityType: entityResolution.entityType,
               companiesHouseNumber: entityResolution.companiesHouseNumber,
+              whatsappEligible,
               city,
               outreachStage: 'Not Contacted',
               businessName: details.name,

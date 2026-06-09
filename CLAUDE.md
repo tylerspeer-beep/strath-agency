@@ -770,11 +770,10 @@ the SC/number if confirmed.
 sole-trader is NOT an ICP "good prospect" bonus. Its real job is to determine which legal
 contact channels we may use under PECR/GDPR: confirmed Ltd/LLP → WhatsApp/text eligible;
 sole trader / unverified → email only (cold WhatsApp/text to sole traders is a PECR breach
-risk). In `scoring.ts` today it is still a small fit weight (Ltd 10 / non-Ltd 5 = +5 delta —
-NOT the "+15" earlier prose claimed). **Decision (9 Jun 2026):** reframe this signal out of
-the desirability score and into a contactability/compliance flag — proposed change pending
-sign-off, tracked in [`JOBS_TO_BE_DONE.md`](../JOBS_TO_BE_DONE.md) and
-`docs/AUDIT_RECONCILIATION.md`. See also §17.
+risk). **Implemented 9 Jun 2026:** `scoreProspect` no longer scores entity at all; instead
+`isWhatsappEligible(entityType)` (scoring.ts) sets the GHL **"WhatsApp Eligible"** field
+(id `s9lNKRXq6aVdriqzVxlP`) — written by the scout (and persisted to Neon `whatsapp_eligible`).
+The ICP score is now the 6 presence+fit categories normalised to 0–100. See §17.
 
 ---
 
@@ -788,10 +787,13 @@ use it (the report renders the stored breakdown; it does not re-derive). Do not 
 from these weights without updating both the code and this section. Full rationale and
 the reconciliation history are in `docs/AUDIT_RECONCILIATION.md`.
 
-**Maximum score: 100 points. GBP-first:** for local locksmiths the map pack + reviews +
+**Score is a reachable 0–100 scale, GBP-first:** for local locksmiths the map pack + reviews +
 phone capture the lead; the website is ~15% of local-pack weight and is a SUPPORT signal.
 Higher score = bigger opportunity = stronger ICP. Categories are split into **presence**
-(shown in the prospect report) and **fit** (internal ICP qualifiers, never shown).
+(shown in the prospect report) and **fit** (internal ICP qualifiers, never shown). The six
+scored categories sum to a raw max of **90**; the stored score is `round(raw / 90 × 100)` so
+the scale stays 0–100 and the tier thresholds/labels stay valid. **Entity (Ltd) is NOT scored**
+— it is a compliance/contactability signal (see below + §16).
 
 ---
 
@@ -840,13 +842,20 @@ See `docs/AUDIT_RECONCILIATION.md` §B2 / §C.
 
 ---
 
-### Fit categories (internal ICP qualifiers, never shown to prospect, max 25)
-
-**Entity Type (max 10)** — `Ltd → 10`, else `5` (a +5 delta in `scoring.ts` today; NOT the "+15" earlier prose claimed). ⚠️ **Its real purpose is compliance/contactability, not desirability** — Ltd vs sole trader sets WhatsApp/text eligibility under PECR (see §16). **Proposed (pending sign-off):** move this out of the 0–100 desirability score and into a separate contactability/compliance flag; that would change the max from 100 → 90 (or require redistributing 10 pts) and shift tier boundaries, so it is **not** applied yet. Tracked in [`JOBS_TO_BE_DONE.md`](../JOBS_TO_BE_DONE.md).
+### Fit categories (internal ICP qualifiers, never shown to prospect, max 15)
 
 **Urban / Proximity (max 8)** — urban (in `URBAN_CITIES` set in scoring.ts) `→ 8`, else `0`.
 
 **Not a Franchise (max 7)** — independent `→ 7`, franchise/aggregator detected `→ 0`. Detection via `detectFranchiseFromText()` + the DB-managed `prospect_filters` suppression layer.
+
+### Entity Type — NOT scored (compliance / contactability signal)
+
+**Implemented 9 Jun 2026.** Entity (Ltd vs sole trader) was removed from the ICP score —
+it is **not a desirability weight**. Its job is to set legal contact-channel eligibility under
+PECR: confirmed **Ltd/LLP → text/WhatsApp eligible**; **sole trader / unknown → email only**.
+`scoreProspect` no longer takes `entityType`; instead `isWhatsappEligible(entityType)` drives the
+GHL **"WhatsApp Eligible"** field (id `s9lNKRXq6aVdriqzVxlP`), written by the scout (CHECKBOX = "Yes").
+The `Entity Type` field still records the entity; the `Companies House Number` field holds the SC/number. See §16.
 
 ---
 
@@ -863,15 +872,19 @@ confirmed tier after full analysis. GHL shows `Pending Audit` until then. See `S
 
 ---
 
-### Typical score examples (GBP-first weights)
+### Typical score examples (GBP-first; entity NOT scored; raw /90 normalised to /100)
 
-| Profile | Calc (reviews+gbp+website+phone+entity+urban+franchise) | Score | Tier |
+| Profile | Raw (reviews+gbp+website+phone+urban+franchise) | Raw/90 → /100 | Tier |
 |---------|--------|-------|------|
-| No website, unclaimed GBP, 8 reviews, has phone, Ltd, Glasgow | 30+25+12+0+10+8+7 | **92** | A |
-| Basic website, claimed-basic GBP, 22 reviews, has phone, Unknown, Edinburgh | 18+18+10+0+5+8+7 | **66** | B |
-| Modern website, claimed-basic GBP, 30 reviews, has phone, Unknown, Aberdeen | 18+18+5+0+5+8+7 | **61** | B |
-| Optimised website, claimed-optimised GBP, 60 reviews, has phone, Ltd, Glasgow | 6+6+1+0+10+8+7 | **38** | C |
-| Optimised website, claimed-optimised GBP, 80 reviews, has phone, Ltd, rural | 6+6+1+0+10+0+7 | **30** | C |
+| No website, unclaimed GBP, 8 reviews, has phone, Glasgow | 30+25+12+0+8+7 = 82 | **91** | A |
+| Basic website, claimed-basic GBP, 22 reviews, has phone, Edinburgh | 18+18+10+0+8+7 = 61 | **68** | B |
+| Modern website, claimed-basic GBP, 30 reviews, has phone, Aberdeen | 18+18+5+0+8+7 = 56 | **62** | B |
+| Optimised website, claimed-optimised GBP, 60 reviews, has phone, Glasgow | 6+6+1+0+8+7 = 28 | **31** | C |
+| Optimised website, claimed-optimised GBP, 80 reviews, has phone, rural | 6+6+1+0+0+7 = 20 | **22** | C |
+
+*Before/after: removing the entity weight and normalising leaves every example in the same
+tier as the previous (entity-included) rubric — Ltd businesses simply no longer get a +5
+desirability edge over sole traders. Not a material tier shift.*
 
 ---
 

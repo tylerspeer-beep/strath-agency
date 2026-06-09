@@ -594,11 +594,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Re-score with refined website status AND any franchise signal found above.
       // franchiseFlag=true subtracts the +10 "not franchise" bonus in scoring.
+      // Entity is NOT scored (compliance/contactability only). whatsapp_eligible is
+      // set by the scout from entityType; the audit re-score does not touch it.
       const { score, tier, breakdown } = scoreProspect({
         gbpReviewCount: prospect.gbpReviewCount,
         websiteStatus: websiteAudit?.websiteStatus ?? prospect.websiteStatus,
         gbpStatus: prospect.gbpStatus,
-        entityType: prospect.entityType,
         isUrban: true,
         franchiseFlag,
         hasPhone: !!(prospect.phone || recoveredPhone),

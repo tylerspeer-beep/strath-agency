@@ -35,6 +35,7 @@ import {
   checkProspectFilters,
   normalizePhone,
 } from '../lib/db.js';
+import { isWhatsappEligible } from '../lib/scoring.js';
 
 const DEFAULT_BATCH = 20;
 const MAX_BATCH = 50;
@@ -121,6 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         gbpUrl: prospect.gbpUrl,
         entityType: prospect.entityType,
         companiesHouseNumber: prospect.companiesHouseNumber,
+        whatsappEligible: prospect.whatsappEligible ?? isWhatsappEligible(prospect.entityType),
         city: prospect.city,
         outreachStage: prospect.outreachStage ?? 'Not Contacted',
         titleTagQuality: prospect.titleTagQuality,

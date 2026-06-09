@@ -319,6 +319,7 @@ export function buildScoutCustomFields(p: {
   gbpUrl?: string;
   entityType?: string;
   companiesHouseNumber?: string;
+  whatsappEligible?: boolean;
   city?: string;
   outreachStage?: string;
   titleTagQuality?: string;
@@ -334,6 +335,9 @@ export function buildScoutCustomFields(p: {
   };
 
   add(GHL.FIELD_IDS.rawScore, p.rawScore);
+  // WhatsApp Eligible is a GHL CHECKBOX — write "Yes" when eligible, omit otherwise.
+  // Compliance/contactability signal (confirmed Ltd/LLP), set from entityType by the scout.
+  add(GHL.FIELD_IDS.whatsappEligible, p.whatsappEligible ? 'Yes' : undefined);
   add(GHL.FIELD_IDS.icpTier, p.icpTier ?? 'Pending Audit');
   add(GHL.FIELD_IDS.websiteStatus, p.websiteStatus);
   add(GHL.FIELD_IDS.gbpStatus, p.gbpStatus);

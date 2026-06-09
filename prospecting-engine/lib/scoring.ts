@@ -9,18 +9,24 @@
 // the website is ~15% of local-pack weight and is treated as a support signal.
 // See CLAUDE.md §17 and docs/AUDIT_RECONCILIATION.md for the full rubric + rationale.
 //
-// Weights (max 100):
+// Raw weights (sum = RAW_MAX = 90); the final score is normalised to 0–100:
 //   PRESENCE (shown in prospect report, max 75):
 //     Google Reviews:  30  (<15 → 30 | 15–40 → 18 | 40+ → 6)
 //     GBP status:      25  (Unclaimed → 25 | Claimed-Basic → 18 | Claimed-Optimised → 6)
 //     Website support: 12  (None → 12 | Basic/Old → 10 | Modern → 5 | Optimised → 1)
 //     Phone/contact:   8   (no public phone → 8 | reachable phone → 0)
-//   FIT (internal ICP qualifiers, max 25):
-//     Entity (Ltd):    10  (Ltd → 10 | Sole Trader/Partnership/Unknown → 5)
+//   FIT (internal ICP qualifiers, max 15):
 //     Urban/proximity: 8   (urban → 8 | else 0)
 //     Not franchise:   7   (independent → 7 | franchise/aggregator → 0)
 //
-// Tiers: A = 70+, B = 40–69, C = <40 (unchanged — preserves GHL option strings + indexes).
+// Final score = round(rawTotal / 90 * 100), so the scale stays a reachable 0–100 and
+// the tier thresholds + GHL labels stay valid. Tiers: A = 70+, B = 40–69, C = <40.
+//
+// ENTITY (Ltd vs sole trader) IS NOT SCORED. Per Tyler's decision (9 Jun 2026) it is a
+// COMPLIANCE / CONTACTABILITY signal, not a desirability weight: it sets legal contact-
+// channel eligibility under PECR (confirmed Ltd/LLP → text/WhatsApp eligible; sole
+// trader/unknown → email only). Use `isWhatsappEligible(entityType)`; the scout writes
+// the result to the GHL "WhatsApp Eligible" field. See CLAUDE.md §16–17.
 //
 // NOTE on the Phone signal: v1 measures contactability only (does a public phone
 // exist). True missed-call / speed-to-lead handling — the sharpest commercial hook —
@@ -32,29 +38,38 @@ import type { ScoreBreakdown, IcpTier, WebsiteStatus, GbpStatus, EntityType } fr
 
 // ── Weight table (single source of truth for maximums) ────────────────────────
 // Exported so the report can render stored points against their maxima without
-// re-implementing any scoring logic.
+// re-implementing any scoring logic. Entity is intentionally absent (see header).
 export const SCORE_WEIGHTS = {
   reviews: 30,
   gbp: 25,
   website: 12,
   phone: 8,
-  entity: 10,
   urban: 8,
   notFranchise: 7,
 } as const;
 
+// Sum of raw weights before normalisation to 0–100.
+export const RAW_MAX = SCORE_WEIGHTS.reviews + SCORE_WEIGHTS.gbp + SCORE_WEIGHTS.website +
+  SCORE_WEIGHTS.phone + SCORE_WEIGHTS.urban + SCORE_WEIGHTS.notFranchise; // = 90
+
 // Categories surfaced in the prospect-facing report (the "online presence" view).
 export const PRESENCE_KEYS = ['reviews', 'gbp', 'website', 'phone'] as const;
 // Internal ICP qualifiers — never shown to the prospect.
-export const FIT_KEYS = ['entity', 'urban', 'notFranchise'] as const;
+export const FIT_KEYS = ['urban', 'notFranchise'] as const;
 // Sum of the presence weights (30 + 25 + 12 + 8).
 export const PRESENCE_MAX = SCORE_WEIGHTS.reviews + SCORE_WEIGHTS.gbp + SCORE_WEIGHTS.website + SCORE_WEIGHTS.phone;
+
+// ── Compliance / contactability ───────────────────────────────────────────────
+// Confirmed Ltd/LLP → text/WhatsApp eligible under PECR. Sole trader / unknown →
+// email only. This drives the GHL "WhatsApp Eligible" field — NOT the ICP score.
+export function isWhatsappEligible(entityType?: EntityType): boolean {
+  return entityType === 'Ltd';
+}
 
 export interface ScoringInputs {
   gbpReviewCount?: number;
   websiteStatus?: WebsiteStatus;
   gbpStatus?: GbpStatus;
-  entityType?: EntityType;
   isUrban?: boolean;          // city population > ~50k = true
   franchiseFlag?: boolean;
   hasPhone?: boolean;         // true if a public phone number is known (GBP or website)
@@ -70,7 +85,6 @@ export function scoreProspect(inputs: ScoringInputs): {
     gbp: 0,
     website: 0,
     phone: 0,
-    entity: 0,
     urban: 0,
     notFranchise: 0,
     total: 0,
@@ -105,29 +119,27 @@ export function scoreProspect(inputs: ScoringInputs): {
   // future enrichment of this slot (see header note).
   breakdown.phone = inputs.hasPhone === false ? 8 : 0;
 
-  // ── Entity (max 10) ──
-  // NOTE: the entity signal's REAL purpose is compliance/contactability, not
-  // desirability — Ltd vs sole trader sets WhatsApp/text eligibility under PECR.
-  // PROPOSED (pending sign-off, see JOBS_TO_BE_DONE.md / CLAUDE.md §16–17): move this
-  // out of the 0–100 desirability score into a separate contactability flag. Until
-  // that's approved (it shifts tier math), it stays as a +5 delta fit weight.
-  breakdown.entity = inputs.entityType === 'Ltd' ? 10 : 5;
-
   // ── Urban / proximity (max 8) ──
   breakdown.urban = inputs.isUrban !== false ? 8 : 0;
 
   // ── Not franchise (max 7) ──
   breakdown.notFranchise = inputs.franchiseFlag ? 0 : 7;
 
-  // ── Total (0–100) ──
-  breakdown.total =
+  // Entity is intentionally NOT scored — it is a compliance/contactability signal
+  // (see isWhatsappEligible + header note), not a desirability weight.
+
+  // ── Total: raw sum (max RAW_MAX = 90) normalised to a 0–100 scale ──
+  // Normalising keeps the scale reachable at 0–100 and the tier thresholds (70/40)
+  // + GHL labels valid after removing the entity weight. The per-category breakdown
+  // values stay raw; `total` is the normalised score.
+  const rawTotal =
     breakdown.reviews +
     breakdown.gbp +
     breakdown.website +
     breakdown.phone +
-    breakdown.entity +
     breakdown.urban +
     breakdown.notFranchise;
+  breakdown.total = Math.round((rawTotal / RAW_MAX) * 100);
 
   const tier: IcpTier =
     breakdown.total >= 70 ? 'A - Hot (70+)' :

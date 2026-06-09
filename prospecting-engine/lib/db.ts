@@ -222,7 +222,7 @@ export async function insertProspect(p: Prospect): Promise<string> {
   const rows = await sql`
     INSERT INTO prospects (
       business_name, trading_name, city, region, postcode, full_address,
-      latitude, longitude, phone, email, website_url,
+      latitude, longitude, phone, email, website_url, whatsapp_eligible,
       google_place_id, gbp_name, gbp_rating, gbp_review_count, gbp_status, gbp_url,
       gbp_categories, business_status, auto_focus,
       entity_type, website_status, franchise_flag, franchise_detected_by,
@@ -241,6 +241,7 @@ export async function insertProspect(p: Prospect): Promise<string> {
       ${normalizedPhone},
       ${p.email ?? null},
       ${p.websiteUrl ?? null},
+      ${p.whatsappEligible ?? false},
       ${p.googlePlaceId ?? null},
       ${p.gbpName ?? null},
       ${p.gbpRating ?? null},

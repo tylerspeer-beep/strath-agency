@@ -53,18 +53,18 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       **0–100**. **Keep the field as the 0–10 AI byproduct; do NOT write 0–100 into it.**
       Decide whether a 0–100 presence score needs its own GHL field or rides on existing
       "ICP Score" (`KtdGRo2H6AkJ2SYyAbpR`). GHL-side, handled with connector work. (§A10.1)
-- [ ] **C2. Reframe the entity signal: compliance/contactability, not desirability**
-      (decision + S code) — Tyler's steer: Ltd-vs-sole-trader must NOT be an arbitrary ICP
-      desirability weight; its real job is **legal contact-channel eligibility** (WhatsApp/text
-      vs email-only under PECR). **Proposed exact change (await sign-off — shifts tier math):**
-      remove `entity` (Ltd 10 / non-Ltd 5) from the 0–100 `scoreProspect` total, and instead
-      set a `whatsappEligible` / contactability flag from `entityType` (confirmed Ltd/LLP →
-      eligible). Either rescale the score to /90 (keep tier numbers, recalibrate A/B/C cutoffs)
-      or redistribute the 10 pts to presence categories. Currently **doc + comment reframed,
-      code math unchanged** pending confirmation. (CLAUDE.md §16–17, `scoring.ts` comment)
-- [ ] **C3. Companies House contactability assessment** (M) — Scout/prospect-engine: assess
-      the Companies House business profile to (a) **confirm business details** and (b)
-      **determine legal contact channels** (WhatsApp/text eligibility). Feeds C2's flag.
+- [x] **C2. Entity signal reframed → compliance/contactability** — **DONE 9 Jun 2026
+      (Tyler approved).** Removed `entity` (was Ltd 10 / non-Ltd 5) from the `scoreProspect`
+      total; the 6 remaining categories (raw max 90) are normalised `round(raw/90×100)` to keep
+      a 0–100 scale + tiers. `isWhatsappEligible(entityType)` now sets the GHL **"WhatsApp
+      Eligible"** field (`s9lNKRXq6aVdriqzVxlP`, CHECKBOX "Yes") via the scout + backfill, and
+      persists to Neon `whatsapp_eligible`. Tier math: all documented examples unchanged (Ltd
+      loses only its old +5 edge). (scoring.ts, types.ts, scout, audit, ghl-client, db, CLAUDE.md §16–17)
+- [ ] **C3. Companies House contactability assessment** (M) — Scout: assess the Companies
+      House business profile to (a) **confirm business details** and (b) **set contact-channel
+      (WhatsApp/text) eligibility**. Today `isWhatsappEligible` keys off `entityType === 'Ltd'`
+      from the existing CH lookup; this item deepens that (LLP handling, confidence, address
+      confirmation) and feeds the WhatsApp Eligible flag.
 
 ## D. Copy / page content
 
@@ -111,6 +111,14 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       run `npm audit fix` on the MCP server and review high-severity items; add `@types/node`
       to the prospecting-engine devDeps/tsconfig so `tsc` runs clean (ties to F2). Do before
       any client data flows.
+- [ ] **F4. Mine-then-archive the build-reference docs** — during the Template build (G1) and
+      the CKK build (G2), reference `tool-registry-patch.md`, `deploy-locksmith-template.md`,
+      and the **Car Key Kings / Workflow Build Guide** docs for any value-add **not yet
+      implemented**, fold what's useful into the build, **then archive them**. Kept in place
+      for now per Tyler (they describe things not yet built).
+- [ ] **F5. Reconcile `Strath_Cloud_Architecture_V1.1 (1).docx` to CLAUDE.md §9** (S) —
+      **CLAUDE.md §9 is the canonical infrastructure map.** Do not archive the docx; instead
+      reconcile it to §9 (or note the contradictions) so the two don't diverge.
 
 ## G. Build sequence — this week (the critical path)
 
@@ -135,7 +143,11 @@ Ordered. Each gate must pass before the next. No prospect is contacted in GHL un
 - [ ] **G5. TEST outreach firing end-to-end** (M) — before connecting ANY prospect in GHL.
       Publish the 5-touch sequence / DNC handler only after this passes (today they're drafts;
       only "Strath - Response Handler" v6 is published).
-- [ ] **G6. Agent swarm for client delivery** (L) — spin up post-close delivery automation,
+- [ ] **G6. Harvest Car Key Kings as social proof → THEN scale** (S–M) — once CKK is live and
+      producing results, capture the outcome (reviews lifted, calls/bookings) as the founder
+      proof block (ties to E2) and the report's competitor/value framing. Only scale outreach
+      after CKK has proven the end-to-end system. (Sequencing confirmed by Tyler.)
+- [ ] **G7. Agent swarm for client delivery** (L) — spin up post-close delivery automation,
       tested against the CKK beta first.
 
 Tyler is signing up for a **WhatsApp Business number** this week. **GDPR/PECR boundary:**
