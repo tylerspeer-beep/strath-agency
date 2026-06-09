@@ -45,6 +45,14 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       the booking URL so bookings attribute back to the prospect/report.
 - [ ] **B4. Scroll/dwell tracking** (M) — client-side JS + beacon to populate
       `Report Time On Page Seconds` + `Report Sections Viewed`.
+- [ ] **B5. Decide report-link tier gating** (S, decision) — **clarified 9 Jun 2026:** the report
+      is **NOT Tier-A-gated**. `api/report.ts` renders live for ANY prospect UUID (no tier/score
+      gate in the renderer), and the `report_url` field is written to the GHL contact for **every
+      audited prospect** that has a `ghl_contact_id` (audit cron `buildAuditCustomFields`, all tiers
+      A/B/C). The only tier gates today: scout→GHL contact + `getProspectsPendingAudit` selection at
+      `raw_score >= 40` (includes B), and GHL **opportunity** creation A+B only. The report is also
+      not "pre-generated" — it's a live endpoint. **Decide:** if outreach should only ever surface a
+      report link for Tier A, gate the `reportUrl` write (or its use in the outreach sequence) by tier.
 
 ## C. Scoring / fields reconciliation
 
@@ -147,6 +155,12 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       and the **Car Key Kings / Workflow Build Guide** docs for any value-add **not yet
       implemented**, fold what's useful into the build, **then archive them**. Kept in place
       for now per Tyler (they describe things not yet built).
+- [ ] **F6. Wire Vercel auto-deploy from `main` (or document CLI-only)** (S) — **observed
+      9 Jun 2026:** `git push origin main` did NOT trigger a Vercel production deploy; prod is
+      updated only via `vercel --prod` (CLI) and the `strath-agency.vercel.app` alias tracks the
+      latest CLI prod deploy, not the latest push. Either connect/repair the Git integration so
+      pushes to `main` auto-deploy, or document that prod deploys are manual CLI so a push is never
+      assumed live. (Vercel project root directory = `prospecting-engine`; `.vercel` link at repo root.)
 - [ ] **F5. Reconcile `Strath_Cloud_Architecture_V1.1 (1).docx` to CLAUDE.md §9** (S) —
       **CLAUDE.md §9 is the canonical infrastructure map.** Do not archive the docx; instead
       reconcile it to §9 (or note the contradictions) so the two don't diverge.
@@ -168,8 +182,21 @@ Ordered. Each gate must pass before the next. No prospect is contacted in GHL un
   - [ ] **Create the Snapshot** ("Strath Locksmith V1 — May 2026") once the above is verified.
 - [ ] **G2. Clone the Template → create Car Key Kings as the end-to-end BETA** (M) — incl. the
       **premium site rebuild**. CKK is not built until this runs. (CKK is NOT live today.)
-- [ ] **G3. strathgrowth.com rebuild** (M) — apply the **new branding package**, load into GHL,
-      and **launch**. Not fully live until this is done.
+- [x] **G3. Prospect-report rebrand → Strath v2 brand package** — **DONE 9 Jun 2026.**
+      `prospecting-engine/api/report.ts` restyled to the v2 brand in one pass, structure
+      unchanged: Slate #15181C base (dark hero + close), Graphite surfaces, warm Stone/Paper
+      body, British Racing Green CTA #1F4434 (hover #2E5C46), Honey #C19A52 as a single
+      eyebrow highlight; Manrope (display/body) + JetBrains Mono (scores/labels) via Google
+      Fonts; served crest at `public/strath-crest.png` + wide-tracked STRATH wordmark. Data
+      tiers + Leaflet map pins unified to earthy green #2F7A56 / amber #C19A52 / brick #A4502E
+      (single `DATA_*` source). Typecheck clean. Deployed to prod via `vercel --prod` (the
+      `git push` to main did NOT auto-deploy — see F6). Smoke-tested live for a populated
+      prospect (presence score + rank map shown) and an un-scanned one (both sections hidden
+      gracefully; listing card still shows). NOTE: this is the **first surface** of the v2
+      brand package — the strathgrowth.com site itself is still to do (G3a).
+- [ ] **G3a. strathgrowth.com site rebuild + GHL load + launch** (M) — the remainder of the
+      original G3: apply the v2 brand package to the strathgrowth.com site, load into GHL, and
+      launch. NOT done — strathgrowth.com is still not fully live (see §15 reality check).
 - [ ] **G4. Refine the Tier A audit doc** (S–M) — the audit/report output a prospect receives.
 - [ ] **G5. TEST outreach firing end-to-end** (M) — before connecting ANY prospect in GHL.
       Publish the 5-touch sequence / DNC handler only after this passes (today they're drafts;
