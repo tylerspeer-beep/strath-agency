@@ -522,8 +522,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Contact info recovery — Places sometimes returns no phone/email even when
       // the business publishes both on its site. We pull tel:/mailto: anchors first
       // and fall back to body-text regex. Only writes when the field is currently null.
+      let recoveredPhone: string | undefined;
       if (websiteAudit?.reachable && websiteAudit.rawHtmlSnapshot && (!prospect.phone || !prospect.email)) {
         const recovered = extractContactFromHtml(websiteAudit.rawHtmlSnapshot);
+        recoveredPhone = recovered.phone ?? undefined;
         if (recovered.phone || recovered.email) {
           await updateProspectContactInfo(prospect.id!, {
             phone: !prospect.phone ? recovered.phone : undefined,
@@ -599,6 +601,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         entityType: prospect.entityType,
         isUrban: true,
         franchiseFlag,
+        hasPhone: !!(prospect.phone || recoveredPhone),
       });
 
       // Confirmed franchise → flag for manual review (don't proceed to outreach).

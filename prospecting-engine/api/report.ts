@@ -22,6 +22,17 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
+import { SCORE_WEIGHTS, PRESENCE_KEYS, PRESENCE_MAX } from '../lib/scoring.js';
+import type { ScoreBreakdown } from '../lib/types.js';
+
+// Prospect-facing labels for the presence categories (the only categories shown
+// in the report — the internal ICP "fit" qualifiers are never surfaced).
+const PRESENCE_LABELS: Record<string, string> = {
+  reviews: 'Google Reviews',
+  gbp: 'Google Business Profile',
+  website: 'Website',
+  phone: 'Phone & Contactability',
+};
 
 // ── 1x1 transparent GIF for open tracking pixel ──────────────────────────────
 const TRACKING_PIXEL = Buffer.from(
@@ -80,8 +91,6 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
   const gbpRating    = p.gbp_rating ? Number(p.gbp_rating) : null;
   const gbpReviews   = p.gbp_review_count ? Number(p.gbp_review_count) : null;
   const gbpStatus    = String(p.gbp_status ?? 'Unknown');
-  const icpScore     = p.icp_score ? Number(p.icp_score) : (p.raw_score ? Number(p.raw_score) : null);
-  const aiScore      = p.observation_1 ? null : null; // from audit — stored on prospect record if available
 
   const obs1         = p.observation_1 ? String(p.observation_1) : null;
   const obs2         = p.observation_2 ? String(p.observation_2) : null;
@@ -96,12 +105,28 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
   const websiteStatus = String(p.website_status ?? 'Unknown');
   const agencyMark   = p.agency_watermark ? String(p.agency_watermark) : null;
 
-  // Derive AI visibility score from audit fields if not stored directly
-  let aiVisScore = 0;
-  if (hasSchema)  aiVisScore += 3;
-  if (hasFaq)     aiVisScore += 2;
-  if (mobileOk)   aiVisScore += 1;
-  if (hasTitleTag) aiVisScore += 1;
+  // ── Online Presence Score (rendered from the STORED breakdown) ──────────────
+  // The report does NOT compute its own rubric. It reads the stored score_breakdown
+  // (written by scoreProspect, the single source of truth) and inverts each presence
+  // category for display: strength = weight − opportunity-points. Higher = stronger.
+  // PRESENCE_MAX and SCORE_WEIGHTS are imported from scoring.ts so weights live in
+  // exactly one place. Falls back to null when no breakdown is stored (pre-rebuild
+  // rows) — the per-signal findings cards below still render.
+  let presenceBars: { label: string; strength: number; max: number }[] | null = null;
+  let presenceScore: number | null = null;
+  // Require the `phone` key: it only exists in breakdowns written by the rebuilt
+  // GBP-first model, so this also screens out stale pre-rebuild rows (old weights).
+  const rawBreakdown = p.score_breakdown as ScoreBreakdown | null | undefined;
+  if (rawBreakdown && typeof rawBreakdown === 'object' && 'phone' in rawBreakdown) {
+    presenceBars = PRESENCE_KEYS.map((k) => {
+      const max = SCORE_WEIGHTS[k];
+      const opportunity = Number((rawBreakdown as unknown as Record<string, number>)[k] ?? 0);
+      const strength = Math.max(0, Math.min(max, max - opportunity));
+      return { label: PRESENCE_LABELS[k] ?? k, strength, max };
+    });
+    const totalStrength = presenceBars.reduce((s, b) => s + b.strength, 0);
+    presenceScore = Math.round((totalStrength / PRESENCE_MAX) * 100);
+  }
 
   const websiteStatusColor = websiteStatus === 'Optimised' ? '#10b981' :
                              websiteStatus === 'Modern'    ? '#f59e0b' : '#ef4444';
@@ -305,8 +330,8 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
     <div class="finding-row">
       <div class="finding-icon ${hasSchema ? 'icon-pass' : 'icon-fail'}">${hasSchema ? '✓' : '✗'}</div>
       <div class="finding-text">
-        <div class="finding-label">Schema Markup (Structured Data)</div>
-        <div class="finding-detail">${hasSchema ? 'Present — AI engines can index this business.' : 'Missing — ChatGPT, Perplexity, and Google AI cannot identify or recommend this business from structured data.'}</div>
+        <div class="finding-label">Machine-readable business info <span style="color:#94a3b8;font-weight:400">(schema markup)</span></div>
+        <div class="finding-detail">${hasSchema ? 'Present — helps Google and AI tools read and cite this business.' : 'Missing — this is one of the structured-data signals AI search tools prefer when they cite local providers. Sites with it get cited more often.'}</div>
       </div>
     </div>
 
@@ -314,7 +339,7 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
       <div class="finding-icon ${hasFaq ? 'icon-pass' : 'icon-fail'}">${hasFaq ? '✓' : '✗'}</div>
       <div class="finding-text">
         <div class="finding-label">FAQ Section</div>
-        <div class="finding-detail">${hasFaq ? 'Present — good for AI answer indexing.' : 'Missing — FAQ content is the primary way AI tools surface local businesses in search answers.'}</div>
+        <div class="finding-detail">${hasFaq ? 'Present — good for AI answer indexing.' : 'Missing — FAQ content is one of the formats AI tools draw on when answering local service questions.'}</div>
       </div>
     </div>
 
@@ -322,7 +347,7 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
       <div class="finding-icon ${mobileOk ? 'icon-pass' : 'icon-fail'}">${mobileOk ? '✓' : '✗'}</div>
       <div class="finding-text">
         <div class="finding-label">Mobile Optimisation</div>
-        <div class="finding-detail">${mobileOk ? 'Mobile viewport configured.' : 'Not mobile-optimised — over 70% of emergency locksmith searches happen on a phone.'}</div>
+        <div class="finding-detail">${mobileOk ? 'Mobile viewport configured.' : 'Not mobile-optimised — most emergency locksmith searches happen on a phone, so a mobile-friendly site matters.'}</div>
       </div>
     </div>
 
@@ -344,44 +369,36 @@ function renderReport(p: Record<string, unknown>, trackingUrl: string): string {
     </div>` : ''}
   </div>
 
-  <!-- AI Visibility Score -->
+  <!-- Online Presence Score (rendered from the stored, GBP-first breakdown) -->
+  ${presenceBars && presenceScore !== null ? `
   <div class="card">
-    <div class="card-title">AI Search Visibility Score</div>
+    <div class="card-title">Online Presence Score</div>
     <p style="font-size:13px;color:#64748b;margin-bottom:20px">
-      How visible this business is to AI-powered search tools (ChatGPT, Google AI Overview, Perplexity).
-      Score of 0–10 based on structured data signals.
+      How strong this business looks across the signals that actually win local locksmith
+      jobs — Google Business Profile, reviews, phone reachability, and the website that
+      supports them. The bars show the strongest and weakest areas.
     </p>
 
+    ${presenceBars.map((b) => {
+      const pct = Math.round((b.strength / b.max) * 100);
+      const color = pct >= 67 ? '#10b981' : pct >= 34 ? '#f59e0b' : '#ef4444';
+      return `
     <div class="score-row">
-      <div class="score-label">Schema Markup</div>
-      ${scoreBar(hasSchema ? 3 : 0, 3, '#3b82f6')}
-      <div class="score-value" style="color:${hasSchema ? '#16a34a' : '#dc2626'}">${hasSchema ? 3 : 0}/3</div>
-    </div>
-    <div class="score-row">
-      <div class="score-label">FAQ Content</div>
-      ${scoreBar(hasFaq ? 2 : 0, 2, '#3b82f6')}
-      <div class="score-value" style="color:${hasFaq ? '#16a34a' : '#dc2626'}">${hasFaq ? 2 : 0}/2</div>
-    </div>
-    <div class="score-row">
-      <div class="score-label">Mobile Ready</div>
-      ${scoreBar(mobileOk ? 1 : 0, 1, '#3b82f6')}
-      <div class="score-value" style="color:${mobileOk ? '#16a34a' : '#dc2626'}">${mobileOk ? 1 : 0}/1</div>
-    </div>
-    <div class="score-row">
-      <div class="score-label">Title Tag</div>
-      ${scoreBar(hasTitleTag ? 1 : 0, 1, '#3b82f6')}
-      <div class="score-value" style="color:${hasTitleTag ? '#16a34a' : '#dc2626'}">${hasTitleTag ? 1 : 0}/1</div>
-    </div>
+      <div class="score-label">${b.label}</div>
+      ${scoreBar(b.strength, b.max, color)}
+      <div class="score-value" style="color:${color}">${pct}%</div>
+    </div>`;
+    }).join('')}
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:16px">
-      <div style="font-size:42px;font-weight:800;color:${aiVisScore >= 6 ? '#10b981' : aiVisScore >= 3 ? '#f59e0b' : '#ef4444'}">${aiVisScore}<span style="font-size:18px;color:#94a3b8">/10</span></div>
+      <div style="font-size:42px;font-weight:800;color:${presenceScore >= 67 ? '#10b981' : presenceScore >= 34 ? '#f59e0b' : '#ef4444'}">${presenceScore}<span style="font-size:18px;color:#94a3b8">/100</span></div>
       <div style="font-size:14px;color:#64748b">
-        ${aiVisScore >= 7 ? 'Good AI visibility. A few refinements could make this the go-to locksmith in AI results.' :
-          aiVisScore >= 4 ? 'Some signals in place but significant gaps that prevent AI recommendations.' :
-          'Low AI visibility. This business is effectively invisible to ChatGPT, Perplexity and Google AI answers.'}
+        ${presenceScore >= 67 ? 'Solid local presence. A few targeted fixes would tighten the lead well further.' :
+          presenceScore >= 34 ? 'A workable base with clear gaps — the weakest bars above are where the quickest wins are.' :
+          'Significant gaps in the signals that capture local jobs. The biggest levers are the lowest bars above.'}
       </div>
     </div>
-  </div>
+  </div>` : ''}
 
   <!-- GBP Analysis -->
   <div class="card">
@@ -490,7 +507,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       SELECT
         id, business_name, city, website_url,
         gbp_rating, gbp_review_count, gbp_status,
-        icp_score, raw_score, icp_tier,
+        icp_score, raw_score, icp_tier, score_breakdown,
         has_schema, has_faq, mobile_optimised, has_title_tag, has_h1,
         website_status, agency_watermark,
         observation_1, observation_2, nearest_competitor,

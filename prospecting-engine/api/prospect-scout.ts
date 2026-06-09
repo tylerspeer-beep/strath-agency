@@ -387,6 +387,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           entityType: entityResolution.entityType,
           isUrban,
           franchiseFlag: false,
+          hasPhone: !!rawPhone,
         });
 
         // Raw score counters (for run log — using same thresholds as before for tracking)

@@ -159,6 +159,21 @@
 
 ---
 
+## Schema drift (flagged 9 Jun 2026 — see docs/AUDIT_RECONCILIATION.md §A)
+
+- **The `audits` table is declared in `schema.sql` but never written.** All audit
+  output goes to columns on `prospects` via `updateProspectAudit()`. Every column
+  unique to `audits` is dead schema — including `competitor_rank`, `page_load_class`,
+  `ai_visibility_score`, `raw_html_snapshot`, `raw_gbp_data`, `schema_types`,
+  `passed_to_ghl`. The multi-page audit (D3) should revive this table as the
+  per-run / per-page record rather than bloating `prospects`. **Product decision pending.**
+- **`ai_visibility_score`** is computed by the audit and pushed to GHL only — it is
+  stored in **no `prospects` column**, which is why `report.ts` used to re-derive it.
+  Per D4 (AI = byproduct) the report no longer shows it; add `prospects.ai_visibility_score`
+  only if you want it on the report.
+- **`report_sections_viewed`** GHL field + `report.ts` param exist but are never
+  populated (no scroll/section tracking — only the open pixel fires).
+
 ## Outstanding Issues
 
 ### Immediate (blocking clean data)

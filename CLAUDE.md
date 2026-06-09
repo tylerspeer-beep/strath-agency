@@ -751,83 +751,77 @@ Sole Trader, email only. The `Entity Type` field in GHL holds the outcome. The
 
 ---
 
-## 17. ICP Scoring Rubric
+## 17. ICP Scoring Rubric (GBP-first — rebuilt 9 June 2026)
 
-Source of truth: `prospecting-engine/lib/scoring.ts`. Do not deviate from these weights without updating both the code and this section.
+Source of truth: `prospecting-engine/lib/scoring.ts` (`scoreProspect()` + `SCORE_WEIGHTS`).
+This is the ONLY place a score is computed — the scout, the audit, and the report all
+use it (the report renders the stored breakdown; it does not re-derive). Do not deviate
+from these weights without updating both the code and this section. Full rationale and
+the reconciliation history are in `docs/AUDIT_RECONCILIATION.md`.
 
-**Maximum score: 100 points across 6 signal categories.**
+**Maximum score: 100 points. GBP-first:** for local locksmiths the map pack + reviews +
+phone capture the lead; the website is ~15% of local-pack weight and is a SUPPORT signal.
+Higher score = bigger opportunity = stronger ICP. Categories are split into **presence**
+(shown in the prospect report) and **fit** (internal ICP qualifiers, never shown).
 
 ---
 
-### Google Review Count (max 25 pts)
+### Presence categories (shown in report, max 75)
+
+**Google Reviews (max 30)**
 
 | Reviews | Points | Rationale |
 |---------|--------|-----------|
-| < 15 | 25 | Few reviews = weak reputation = high improvement gap = strong ICP |
-| 15 – 40 | 15 | Moderate reviews = some digital maturity |
-| 40+ | 5 | Strong review count = already digitally capable, less need for Strath |
+| < 15 | 30 | Few reviews = weak reputation = high improvement gap = strong ICP |
+| 15 – 40 | 18 | Moderate reviews = some digital maturity |
+| 40+ | 6 | Strong review count = already digitally capable |
 
----
-
-### Website Status (max 25 pts)
+**GBP Status (max 25)** — the map listing is the lead-capture asset
 
 | Status | Points | Rationale |
 |--------|--------|-----------|
-| None | 25 | No website = maximum opportunity |
-| Basic/Old | 20 | Poor website = clear upgrade sell |
-| Modern | 10 | Functional but weak SEO/AI signals |
-| Optimised | 2 | Already competitive — low conversion likelihood |
-
-Website status is set to `Basic/Old` at scout time (Places API gives no page content). The audit cron upgrades it to `Modern` or `Optimised` after fetching and analysing the homepage.
-
----
-
-### GBP Status (max 20 pts)
-
-| Status | Points | Rationale |
-|--------|--------|-----------|
-| Unclaimed | 20 | No control over Maps presence = major pain point |
-| Claimed — Basic | 15 | Listed but not optimised |
-| Claimed — Optimised | 5 | Already working GBP — less pain |
+| Unclaimed | 25 | No control over Maps presence = major pain point |
+| Claimed — Basic | 18 | Listed but not optimised |
+| Claimed — Optimised | 6 | Already working GBP — less pain |
 
 GBP status is inferred from Places API data completeness at scout time (true "claimed" status is not exposed by the API).
 
----
+**Website Status (max 12)** — SUPPORT signal, deliberately demoted from the old 25
 
-### Entity Type (max 10 pts)
+| Status | Points | Rationale |
+|--------|--------|-----------|
+| None | 12 | No website = maximum support-asset gap |
+| Basic/Old | 10 | Poor website = clear upgrade sell |
+| Modern | 5 | Functional but weak SEO/AI signals |
+| Optimised | 1 | Already competitive |
 
-| Entity | Points | Notes |
-|--------|--------|-------|
-| Ltd | 10 | Confirmed via Companies House = WhatsApp eligible, higher commitment |
-| Sole Trader / Partnership / Unknown | 5 | Email only per PECR. Unknown is the default until CH confirms. |
+Website status is set to `Basic/Old` at scout time (Places API gives no page content). The audit upgrades it to `Modern` or `Optimised` after fetching and analysing the page(s).
 
-**Important:** This is a 5-point delta (10 vs 5), not a 15-point bonus. An earlier version of the spec described "+15 for confirmed Ltd" — that was aspirational and does not match the implemented formula. The confirmed delta is +5.
+**Phone / Contactability (max 8)** — first-class slot for the missed-call hook
 
----
+| Signal | Points | Rationale |
+|--------|--------|-----------|
+| No public phone (GBP or website) | 8 | Customers can't reach them = major gap |
+| Reachable phone | 0 | Baseline |
 
-### Urban / Suburban Location (max 10 pts)
-
-| City type | Points |
-|-----------|--------|
-| Urban (population > ~50k, see `URBAN_CITIES` set in scoring.ts) | 10 |
-| Not in urban list | 0 |
-
-The urban city list is hardcoded in `scoring.ts`. Add cities to `URBAN_CITIES` as the geography expands.
-
----
-
-### Not a Franchise (max 10 pts)
-
-| Flag | Points |
-|------|--------|
-| Independent (franchiseFlag = false) | 10 |
-| Franchise / aggregator detected | 0 |
-
-Franchise detection runs via `detectFranchise()` in `scoring.ts` using a hardcoded keyword list. Prospect filters (`prospect_filters` table) provide a separate, DB-managed suppression layer added in Session 1.
+**v1 caveat:** this measures contactability only. True missed-call / speed-to-lead
+handling (the sharpest commercial hook) needs a live call test or connected-client
+telephony — not yet wired. The slot exists so that enrichment lands without a reweight.
+See `docs/AUDIT_RECONCILIATION.md` §B2 / §C.
 
 ---
 
-### Tier thresholds
+### Fit categories (internal ICP qualifiers, never shown to prospect, max 25)
+
+**Entity Type (max 10)** — `Ltd → 10`, else `5`. Ltd = WhatsApp-eligible + higher commitment. (5-point delta, not the aspirational "+15".)
+
+**Urban / Proximity (max 8)** — urban (in `URBAN_CITIES` set in scoring.ts) `→ 8`, else `0`.
+
+**Not a Franchise (max 7)** — independent `→ 7`, franchise/aggregator detected `→ 0`. Detection via `detectFranchiseFromText()` + the DB-managed `prospect_filters` suppression layer.
+
+---
+
+### Tier thresholds (unchanged — preserves GHL option strings + Neon indexes)
 
 | Tier | Score range | Label in GHL / Neon |
 |------|-------------|---------------------|
@@ -835,19 +829,20 @@ Franchise detection runs via `detectFranchise()` in `scoring.ts` using a hardcod
 | B — Warm | 40 – 69 | `B - Warm (40-69)` |
 | C — Cold | 0 – 39 | `C - Cold (<40)` |
 
-**Session 1 change:** The scout no longer assigns a real tier at discovery. It stores `raw_score` and sets `icp_tier = 'ungraded'`. The audit cron assigns the confirmed tier after full website analysis. GHL contacts show `Pending Audit` in the ICP Tier field until the audit runs. See `SESSION_1_DEBRIEF.md` for full detail.
+The scout stores `raw_score` and sets `icp_tier = 'ungraded'`; the audit assigns the
+confirmed tier after full analysis. GHL shows `Pending Audit` until then. See `SESSION_1_DEBRIEF.md`.
 
 ---
 
-### Typical score examples
+### Typical score examples (GBP-first weights)
 
-| Profile | Score | Tier |
-|---------|-------|------|
-| No website, unclaimed GBP, 8 reviews, Ltd, Glasgow | 25+20+20+10+10+10 = **95** | A |
-| Basic website, claimed basic GBP, 22 reviews, Unknown, Edinburgh | 15+20+15+5+10+10 = **75** | A |
-| Modern website, claimed basic GBP, 30 reviews, Unknown, Aberdeen | 15+10+15+5+10+10 = **65** | B |
-| Optimised website, claimed optimised GBP, 60 reviews, Ltd, Glasgow | 5+2+5+10+10+10 = **42** | B |
-| Optimised website, claimed optimised GBP, 80 reviews, Ltd, rural | 5+2+5+10+0+10 = **32** | C |
+| Profile | Calc (reviews+gbp+website+phone+entity+urban+franchise) | Score | Tier |
+|---------|--------|-------|------|
+| No website, unclaimed GBP, 8 reviews, has phone, Ltd, Glasgow | 30+25+12+0+10+8+7 | **92** | A |
+| Basic website, claimed-basic GBP, 22 reviews, has phone, Unknown, Edinburgh | 18+18+10+0+5+8+7 | **66** | B |
+| Modern website, claimed-basic GBP, 30 reviews, has phone, Unknown, Aberdeen | 18+18+5+0+5+8+7 | **61** | B |
+| Optimised website, claimed-optimised GBP, 60 reviews, has phone, Ltd, Glasgow | 6+6+1+0+10+8+7 | **38** | C |
+| Optimised website, claimed-optimised GBP, 80 reviews, has phone, Ltd, rural | 6+6+1+0+10+0+7 | **30** | C |
 
 ---
 
@@ -929,7 +924,8 @@ Pass additional names via the `websiteExtractedNames` parameter. The function de
 
 ---
 
-*Last updated: 1 June 2026 — V7 adds Section 17 (ICP Scoring Rubric derived from scoring.ts) and Section 18 (Companies House Multi-Name Lookup). Corrects "+15 for Ltd" to the actual "+5 delta". Documents Session 1 raw_score / ungraded tier separation. Updates CH lookup to try 4+ name variants per prospect (was 2). Adds websiteExtractedNames param for audit-phase entity enrichment.*
+*Last updated: 9 June 2026 — V8 rebuilds Section 17 to the GBP-first unified scoring model (single source of truth in scoring.ts; report renders the stored breakdown, no re-derivation). Reweights GBP-first per the Maps-first positioning decision (Reviews 30 / GBP 25 / Website 12 / Phone 8 / Entity 10 / Urban 8 / Franchise 7), adds the Phone/contactability signal, and recomputes the tier examples. See `docs/AUDIT_RECONCILIATION.md` for the full reconciliation (docs-consistency report, scoring model, execution roadmap).*
+*V7 adds Section 17 (ICP Scoring Rubric derived from scoring.ts) and Section 18 (Companies House Multi-Name Lookup). Corrects "+15 for Ltd" to the actual "+5 delta". Documents Session 1 raw_score / ungraded tier separation. Updates CH lookup to try 4+ name variants per prospect (was 2). Adds websiteExtractedNames param for audit-phase entity enrichment.*
 *V6 adds Section 16: Prospecting Engine Architecture,*
 *updates Section 15 with full Strath Ops field audit (43 fields confirmed), adds Entity Type*
 *protocol, fixes SMS API documentation (both /templates/sms and /templates/snippets are 404),*

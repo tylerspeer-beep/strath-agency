@@ -20,14 +20,18 @@ export type ProspectStatus =
   | 'closed_lost'
   | 'do_not_contact';
 
+// GBP-first weights. Source of truth: SCORE_WEIGHTS in scoring.ts.
+// Presence categories (reviews, gbp, website, phone) are surfaced in the prospect
+// report; fit categories (entity, urban, notFranchise) are internal ICP qualifiers.
 export interface ScoreBreakdown {
-  reviews: number;     // max 25
-  website: number;     // max 25
-  gbp: number;         // max 20
-  entity: number;      // max 10
-  urban: number;       // max 10
-  notFranchise: number; // max 10
-  total: number;       // max 100
+  reviews: number;      // max 30  (presence)
+  gbp: number;          // max 25  (presence)
+  website: number;      // max 12  (presence)
+  phone: number;        // max 8   (presence — v1 contactability only)
+  entity: number;       // max 10  (fit)
+  urban: number;        // max 8   (fit)
+  notFranchise: number; // max 7   (fit)
+  total: number;        // max 100
 }
 
 export interface Prospect {

@@ -1,17 +1,54 @@
-// Strath Agency — ICP Scoring Library
-// Formula source: prospect-scout-log.md
+// Strath Agency — ICP / Opportunity Scoring Library
+// SINGLE SOURCE OF TRUTH for all prospect scoring. Both the scout (raw_score)
+// and the audit (icp_score) call scoreProspect(); the report renders the STORED
+// breakdown via SCORE_WEIGHTS / PRESENCE_KEYS below — it does NOT compute its own.
 //
-// Points breakdown (max 100):
-//   Google Reviews:  <15 → 25pts | 15–40 → 15pts | 40+ → 5pts
-//   Website:         None → 25pts | Basic/Old → 20pts | Modern → 10pts | Optimised → 2pts
-//   GBP:             Unclaimed → 20pts | Claimed Basic → 15pts | Optimised → 5pts
-//   Entity:          Ltd → 10pts | Sole Trader/Partnership/Unknown → 5pts
-//   Urban/Suburban:  true → 10pts
-//   Not Franchise:   true → 10pts
+// Model: GBP-first, 0–100 reachable scale. Higher score = bigger opportunity =
+// stronger ICP (a weak online presence is what makes a good Strath prospect).
+// Rationale: for local locksmiths the map pack + reviews + phone capture the lead;
+// the website is ~15% of local-pack weight and is treated as a support signal.
+// See CLAUDE.md §17 and docs/AUDIT_RECONCILIATION.md for the full rubric + rationale.
 //
-// Tiers: A = 70+, B = 40–69, C = <40
+// Weights (max 100):
+//   PRESENCE (shown in prospect report, max 75):
+//     Google Reviews:  30  (<15 → 30 | 15–40 → 18 | 40+ → 6)
+//     GBP status:      25  (Unclaimed → 25 | Claimed-Basic → 18 | Claimed-Optimised → 6)
+//     Website support: 12  (None → 12 | Basic/Old → 10 | Modern → 5 | Optimised → 1)
+//     Phone/contact:   8   (no public phone → 8 | reachable phone → 0)
+//   FIT (internal ICP qualifiers, max 25):
+//     Entity (Ltd):    10  (Ltd → 10 | Sole Trader/Partnership/Unknown → 5)
+//     Urban/proximity: 8   (urban → 8 | else 0)
+//     Not franchise:   7   (independent → 7 | franchise/aggregator → 0)
+//
+// Tiers: A = 70+, B = 40–69, C = <40 (unchanged — preserves GHL option strings + indexes).
+//
+// NOTE on the Phone signal: v1 measures contactability only (does a public phone
+// exist). True missed-call / speed-to-lead handling — the sharpest commercial hook —
+// requires a live call test or a connected-client integration and is NOT yet wired.
+// The category exists as a first-class slot so that enrichment lands without a
+// reweight. See docs/AUDIT_RECONCILIATION.md §C.
 
 import type { ScoreBreakdown, IcpTier, WebsiteStatus, GbpStatus, EntityType } from './types.js';
+
+// ── Weight table (single source of truth for maximums) ────────────────────────
+// Exported so the report can render stored points against their maxima without
+// re-implementing any scoring logic.
+export const SCORE_WEIGHTS = {
+  reviews: 30,
+  gbp: 25,
+  website: 12,
+  phone: 8,
+  entity: 10,
+  urban: 8,
+  notFranchise: 7,
+} as const;
+
+// Categories surfaced in the prospect-facing report (the "online presence" view).
+export const PRESENCE_KEYS = ['reviews', 'gbp', 'website', 'phone'] as const;
+// Internal ICP qualifiers — never shown to the prospect.
+export const FIT_KEYS = ['entity', 'urban', 'notFranchise'] as const;
+// Sum of the presence weights (30 + 25 + 12 + 8).
+export const PRESENCE_MAX = SCORE_WEIGHTS.reviews + SCORE_WEIGHTS.gbp + SCORE_WEIGHTS.website + SCORE_WEIGHTS.phone;
 
 export interface ScoringInputs {
   gbpReviewCount?: number;
@@ -20,6 +57,7 @@ export interface ScoringInputs {
   entityType?: EntityType;
   isUrban?: boolean;          // city population > ~50k = true
   franchiseFlag?: boolean;
+  hasPhone?: boolean;         // true if a public phone number is known (GBP or website)
 }
 
 export function scoreProspect(inputs: ScoringInputs): {
@@ -29,51 +67,59 @@ export function scoreProspect(inputs: ScoringInputs): {
 } {
   const breakdown: ScoreBreakdown = {
     reviews: 0,
-    website: 0,
     gbp: 0,
+    website: 0,
+    phone: 0,
     entity: 0,
     urban: 0,
     notFranchise: 0,
     total: 0,
   };
 
-  // ── Google Reviews ──
+  // ── Google Reviews (max 30) ──
   const reviews = inputs.gbpReviewCount ?? 0;
-  if (reviews < 15)        breakdown.reviews = 25;
-  else if (reviews <= 40)  breakdown.reviews = 15;
-  else                     breakdown.reviews = 5;
+  if (reviews < 15)        breakdown.reviews = 30;
+  else if (reviews <= 40)  breakdown.reviews = 18;
+  else                     breakdown.reviews = 6;
 
-  // ── Website ──
-  switch (inputs.websiteStatus) {
-    case 'None':        breakdown.website = 25; break;
-    case 'Basic/Old':   breakdown.website = 20; break;
-    case 'Modern':      breakdown.website = 10; break;
-    case 'Optimised':   breakdown.website = 2;  break;
-    default:            breakdown.website = 20; // unknown = treat as Basic/Old
-  }
-
-  // ── GBP ──
+  // ── GBP status (max 25) — GBP-first: the map listing is the lead-capture asset ──
   switch (inputs.gbpStatus) {
-    case 'Unclaimed':        breakdown.gbp = 20; break;
-    case 'Claimed - Basic':  breakdown.gbp = 15; break;
-    case 'Claimed - Optimised': breakdown.gbp = 5; break;
-    default:                 breakdown.gbp = 15; // unknown = assume claimed basic
+    case 'Unclaimed':           breakdown.gbp = 25; break;
+    case 'Claimed - Basic':     breakdown.gbp = 18; break;
+    case 'Claimed - Optimised': breakdown.gbp = 6;  break;
+    default:                    breakdown.gbp = 18; // unknown = assume claimed basic
   }
 
-  // ── Entity ──
+  // ── Website (max 12) — support signal only, deliberately demoted ──
+  switch (inputs.websiteStatus) {
+    case 'None':        breakdown.website = 12; break;
+    case 'Basic/Old':   breakdown.website = 10; break;
+    case 'Modern':      breakdown.website = 5;  break;
+    case 'Optimised':   breakdown.website = 1;  break;
+    default:            breakdown.website = 10; // unknown = treat as Basic/Old
+  }
+
+  // ── Phone / contactability (max 8) ──
+  // v1: contactability only. No public phone is a major (rare) gap → full points.
+  // A reachable phone scores 0 here; missed-call/speed-to-lead handling is a
+  // future enrichment of this slot (see header note).
+  breakdown.phone = inputs.hasPhone === false ? 8 : 0;
+
+  // ── Entity (max 10) — Ltd = WhatsApp-eligible + higher commitment ──
   breakdown.entity = inputs.entityType === 'Ltd' ? 10 : 5;
 
-  // ── Urban ──
-  breakdown.urban = inputs.isUrban !== false ? 10 : 0;
+  // ── Urban / proximity (max 8) ──
+  breakdown.urban = inputs.isUrban !== false ? 8 : 0;
 
-  // ── Not Franchise ──
-  breakdown.notFranchise = inputs.franchiseFlag ? 0 : 10;
+  // ── Not franchise (max 7) ──
+  breakdown.notFranchise = inputs.franchiseFlag ? 0 : 7;
 
-  // ── Total ──
+  // ── Total (0–100) ──
   breakdown.total =
     breakdown.reviews +
-    breakdown.website +
     breakdown.gbp +
+    breakdown.website +
+    breakdown.phone +
     breakdown.entity +
     breakdown.urban +
     breakdown.notFranchise;
