@@ -171,8 +171,15 @@
   stored in **no `prospects` column**, which is why `report.ts` used to re-derive it.
   Per D4 (AI = byproduct) the report no longer shows it; add `prospects.ai_visibility_score`
   only if you want it on the report.
-- **`report_sections_viewed`** GHL field + `report.ts` param exist but are never
-  populated (no scroll/section tracking — only the open pixel fires).
+- **GHL field "AI Visibility Score" (`VvQ9s0ihgKFEfCIIX23F`) is 0–10**, while the
+  unified scoring model is 0–100 (`icp_score` → GHL "ICP Score" `KtdGRo2H6AkJ2SYyAbpR`).
+  **Do NOT write 0–100 into the 0–10 field.** Keep `AI Visibility Score` as the 0–10 AI
+  byproduct; add a separate field only if a 0–100 presence score must appear in GHL.
+  GHL-side decision — see `docs/AUDIT_RECONCILIATION.md` §A10.1 / roadmap item 17.
+- **Engagement receiver fields exist in GHL but have no producing code** (verified live
+  9 Jun 2026): `Report CTA Clicked` (`1eppfEUxc99mwgRdiUI5`), `Report Time On Page Seconds`
+  (`NOH0M0vs860XXylQm1wv`), `Report Sections Viewed` (`Oft0VvnvXzHpjutMUqSi`). The report
+  only fires the open pixel. Wire the producers later — roadmap items 12 + 16.
 
 ## Outstanding Issues
 

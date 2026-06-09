@@ -131,6 +131,72 @@ this doc for rationale.
 
 ---
 
+### A10. Live GHL ground-truth reconciliation (audited via API, 9 Jun 2026)
+
+The GHL instance was audited directly. These are mismatches between deployed GHL
+state and our code/docs. **No GHL changes were made from this side** — the connector
+work is handled separately. Each item below is documented for that follow-up.
+
+#### A10.1 "AI Visibility Score" field is 0–10, but scoring is moving to 0–100 — **CONFLICT, FLAG**
+
+The GHL custom field **"AI Visibility Score"** (id `VvQ9s0ihgKFEfCIIX23F`) is defined
+as **0–10**. The audit still writes Claude's 0–10 value to it (`buildAuditCustomFields`
+→ `aiVisibilityScore`). That is fine *as long as it stays a 0–10 AI byproduct* (D4).
+
+The conflict: if anyone expects this field to hold the new **0–100 unified score**, it
+won't fit. **Reconciliation needed (GHL-side, separate work):**
+- **Keep** `AI Visibility Score` as the 0–10 AI byproduct (recommended, matches D4), **and**
+- if the 0–100 presence/opportunity score should appear in GHL, **add a new field**
+  (e.g. "Presence Score 0–100") rather than repointing the 0–10 field.
+- The internal 0–100 `icp_score` already maps to GHL **"ICP Score"** (`KtdGRo2H6AkJ2SYyAbpR`),
+  so a separate presence field may not even be required — decide alongside the §B3 framing question.
+- Do **not** silently start writing 0–100 values into the 0–10 field. Update
+  `SCHEMA-MAP.md` + this doc when the GHL field decision is made.
+
+#### A10.2 Engagement fields exist in GHL but have no producer — **CONFIRMS A4 drift**
+
+Three GHL fields already exist to *receive* engagement data, but **no code produces it**:
+
+| GHL field | id | Producer status |
+|-----------|----|-----------------|
+| Report CTA Clicked | `1eppfEUxc99mwgRdiUI5` | ❌ No producer — the report CTA is a plain link; no click is recorded |
+| Report Time On Page Seconds | `NOH0M0vs860XXylQm1wv` | ❌ No producer — only the open pixel fires |
+| Report Sections Viewed | `Oft0VvnvXzHpjutMUqSi` | ❌ No producer — `updateGhlReportFields()` accepts it but nothing passes it |
+
+This is the GHL mirror of the unwritten-column drift (A4): **the receivers exist; the
+producing code does not.** Wiring the producers is in the roadmap (C1 items 12 + 16).
+
+#### A10.3 Workflow publish state vs docs — **FLAG**
+
+Only **"Strath - Response Handler" (v6)** is **PUBLISHED**. These are **DRAFT / not live**:
+"Strath Outreach 5-Touch Sequence", "Do Not Contact Handler", "Tier A Prospect Review".
+There is also a **near-duplicate draft "Strath Response Handler"** (no hyphen) shadowing
+the published **"Strath - Response Handler"** (with hyphen) — a foot-gun; one should be deleted.
+
+Doc check: `SESSION_2_DEBRIEF.md` and `SESSION_3_PROMPT.md` correctly treat the outreach
+sequence as **not yet published** ("Publish the outreach workflow once merge fields are
+confirmed"), so they are *consistent* with GHL. `CLAUDE.md` §16 describes the response
+handler as a prerequisite that "must exist before outreach starts" — also consistent
+(it is the one published workflow). **No doc claims the outreach sequence or DNC handler
+are live**, so no doc is wrong here — but the **near-duplicate response handler** and the
+**draft DNC/outreach/Tier-A** states are recorded here so the connector work resolves them.
+
+#### A10.4 Pipeline leftover — **FLAG**
+
+**"Locksmith Prospect Pipeline" (10 stages)** is the real pipeline (id
+`I7FwEILwbdXkvyK4ak6q`, per `SESSION_3_PROMPT.md`). A generic **"Marketing Pipeline"**
+also exists and looks like a leftover/default. Our code references only the Locksmith
+Prospect Pipeline (`GHL.PIPELINE_ID`), so no code/doc references the wrong pipeline —
+but the stray "Marketing Pipeline" should be removed GHL-side to avoid confusion.
+
+#### A10.5 Picklist typo — **FLAG (GHL-side)**
+
+The **Active Services** picklist contains **"Missed Call Tex-Back"** — should be
+**"Missed Call Text-Back"**. Cosmetic, but fix it in GHL before any workflow references
+the option string (option-string mismatches are a known silent-failure class here).
+
+---
+
 ## Part B — The Unified Scoring Model (implemented)
 
 **One function, one weight table, one stored result.** `scoreProspect()` in
@@ -246,10 +312,12 @@ real value, not needed for v1.
 | 9 | **Stored screenshots per page** (screenshot API / headless, not live iframe). (D4) | M | external screenshot service + storage (blob), new env var | **Defer** — adds cost + infra; not needed for an accurate audit |
 | 10 | **Real missed-call / speed-to-lead signal** (telephony / call test). (D4) | L | connected-client / paid step | **Defer** — v1 uses the contactability placeholder (B2) |
 | 11 | **Page-load / speed measurement** to finally write `page_load_class`. (D3) | M | #3 | Defer |
-| 12 | **`report_sections_viewed` scroll tracking** (A4). | M | client-side JS in report | Defer |
+| 12 | **Scroll/dwell tracking** → populate `Report Sections Viewed` (`Oft0VvnvXzHpjutMUqSi`) + `Report Time On Page Seconds` (`NOH0M0vs860XXylQm1wv`). **Field already exists in GHL — wire the producer** (client-side JS + a beacon to the report endpoint). (A10.2) | M | client-side JS in report | Defer |
 | 13 | **GHL custom fields** for new signals (competitor URL, town-page pattern, screenshot link) + `FIELD_IDS`. | S | Tyler creates fields in GHL UI | Defer (until outreach uses them) |
 | 14 | **Honest-timeframe copy pass** across report CTA + email templates (D5); resolve the guarantee question (A6). | S | **your product decision** | v1 for the report copy once you answer A6; email templates Defer |
 | 15 | **Fix pre-existing scout TS errors** (A8). | S | — | Optional (recommended) |
+| 16 | **CTA-click tracking** → populate `Report CTA Clicked` (`1eppfEUxc99mwgRdiUI5`). **Field already exists in GHL — wire the producer** (route the booking CTA through a tracked redirect, e.g. `/api/report?id=…&cta=1`, that records the click then 302s to the calendar). (A10.2) | S | — | Defer (cheap; pairs with item 14 CTA work) |
+| 17 | **GHL field reconciliation for the score** (A10.1): keep `AI Visibility Score` (`VvQ9s0ihgKFEfCIIX23F`) as the 0–10 AI byproduct; decide whether the 0–100 presence score needs its own GHL field or rides on existing `ICP Score`. **GHL-side, separate connector work — do not write 0–100 into the 0–10 field.** | S | **your decision + GHL connector** | v1 decision; field change deferred to connector work |
 
 ### C2. Recommended sequence — minimum to ship an accurate, consistent v1
 
@@ -277,8 +345,13 @@ and each adds cost, infra, or a dependency:
   pages; full inventory is diminishing returns for v1.
 - **Real missed-call telephony (item 10)** — a connected-client/paid step by definition
   (D5). v1 ships the honest contactability placeholder.
-- **Scroll/section tracking, page-speed class, pretty URLs, GHL field plumbing**
-  (items 11–13) — analytics polish, not audit accuracy.
+- **Scroll/section tracking, page-speed class, pretty URLs, GHL field plumbing,
+  CTA-click tracking** (items 11–13, 16) — analytics polish, not audit accuracy.
+  Note these GHL receiver fields already exist (A10.2), so they're cheap to wire
+  later — but they don't make the audit more *accurate*, so they stay out of v1.
+- **The AI-Visibility-field reconciliation (item 17 / A10.1)** is a GHL-connector
+  decision, handled separately — the only v1 obligation is to *not* write 0–100
+  into the 0–10 field, which the current code already honours (it writes Claude's 0–10).
 - **The report conversion redesign** from `AUDIT_REPORT_ASSESSMENT.md` (sticky CTA,
   social proof, competitor side-by-side table) — a separate conversion workstream,
   not part of "make the audit accurate and consistent." Keep it out of this track.
