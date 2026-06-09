@@ -327,6 +327,38 @@ real value, not needed for v1.
 | 16 | **CTA-click tracking** → populate `Report CTA Clicked` (`1eppfEUxc99mwgRdiUI5`). **Field already exists in GHL — wire the producer** (route the booking CTA through a tracked redirect, e.g. `/api/report?id=…&cta=1`, that records the click then 302s to the calendar). (A10.2) | S | — | Defer (cheap; pairs with item 14 CTA work) |
 | 17 | **GHL field reconciliation for the score** (A10.1): keep `AI Visibility Score` (`VvQ9s0ihgKFEfCIIX23F`) as the 0–10 AI byproduct; decide whether the 0–100 presence score needs its own GHL field or rides on existing `ICP Score`. **GHL-side, separate connector work — do not write 0–100 into the 0–10 field.** | S | **your decision + GHL connector** | v1 decision; field change deferred to connector work |
 
+### C1a. Page-selection method for the multi-page crawl (spec for items 3–5)
+
+We will **not** have Google Search Console for cold prospects, so we cannot use real
+traffic to pick pages. Honest framing stays "most **important** pages," not "most
+**trafficked**" (D3), until a client connects GSC. The method picks the top **5–8**
+pages using three sources, in priority order, with graceful fallback:
+
+1. **`sitemap.xml` (primary, free).** Fetch `/{root}/sitemap.xml` (and follow a
+   sitemap index if present, plus check `robots.txt` for a `Sitemap:` line). Gives a
+   declared page inventory. Filter to content pages (drop assets, tags, pagination),
+   then rank by URL-depth + path keywords (home, `/services`, `/{service}`,
+   `/{town}`, `/contact`, `/about`).
+2. **`site:domain.com` via a cheap SERP API (secondary — Google's relevance order).**
+   When a sitemap is missing/thin, query `site:domain.com` through a low-cost SERP API
+   (**Serper.dev ~$0.001/query**, or DataForSEO) to get the pages Google has indexed,
+   **in Google's own relevance order** — the closest proxy to "important" we can get
+   without GSC. Take the top results as the page set. Budget: 1 query per prospect.
+3. **Nav / internal-link prominence (free fallback, always available).** Parse the
+   homepage nav/menu and in-page links; rank candidate internal pages by how
+   prominently/frequently they're linked. Used when both (1) and (2) are unavailable,
+   and to break ties / fill the 5–8 slots.
+
+**Always include** the homepage. **De-duplicate** across sources (normalise URLs).
+**Cap** at 8 pages to bound cost/latency. **Record** which source chose each page
+(for transparency + later "GSC connected" upgrade). The town-page-pattern check
+(item 4) runs over the enumerated links from (1)/(3): many town/area links resolving
+to a single `/contact` (no unique town pages) is the signal.
+
+**Build note:** specify now, build with items 3–5. The SERP-API step (2) needs one
+new env var (`SERPER_API_KEY` or equivalent) and is a tiny fetch — trivial to add when
+we build the crawl, but **not built yet**. Sources (1) + (3) need no integration.
+
 ### C2. Recommended sequence — minimum to ship an accurate, consistent v1
 
 1. **Done:** items 1, 2 (scoring + report) — committed this session.
