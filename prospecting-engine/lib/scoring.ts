@@ -105,7 +105,12 @@ export function scoreProspect(inputs: ScoringInputs): {
   // future enrichment of this slot (see header note).
   breakdown.phone = inputs.hasPhone === false ? 8 : 0;
 
-  // ── Entity (max 10) — Ltd = WhatsApp-eligible + higher commitment ──
+  // ── Entity (max 10) ──
+  // NOTE: the entity signal's REAL purpose is compliance/contactability, not
+  // desirability — Ltd vs sole trader sets WhatsApp/text eligibility under PECR.
+  // PROPOSED (pending sign-off, see JOBS_TO_BE_DONE.md / CLAUDE.md §16–17): move this
+  // out of the 0–100 desirability score into a separate contactability flag. Until
+  // that's approved (it shifts tier math), it stays as a +5 delta fit weight.
   breakdown.entity = inputs.entityType === 'Ltd' ? 10 : 5;
 
   // ── Urban / proximity (max 8) ──

@@ -53,13 +53,26 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       **0–100**. **Keep the field as the 0–10 AI byproduct; do NOT write 0–100 into it.**
       Decide whether a 0–100 presence score needs its own GHL field or rides on existing
       "ICP Score" (`KtdGRo2H6AkJ2SYyAbpR`). GHL-side, handled with connector work. (§A10.1)
+- [ ] **C2. Reframe the entity signal: compliance/contactability, not desirability**
+      (decision + S code) — Tyler's steer: Ltd-vs-sole-trader must NOT be an arbitrary ICP
+      desirability weight; its real job is **legal contact-channel eligibility** (WhatsApp/text
+      vs email-only under PECR). **Proposed exact change (await sign-off — shifts tier math):**
+      remove `entity` (Ltd 10 / non-Ltd 5) from the 0–100 `scoreProspect` total, and instead
+      set a `whatsappEligible` / contactability flag from `entityType` (confirmed Ltd/LLP →
+      eligible). Either rescale the score to /90 (keep tier numbers, recalibrate A/B/C cutoffs)
+      or redistribute the 10 pts to presence categories. Currently **doc + comment reframed,
+      code math unchanged** pending confirmation. (CLAUDE.md §16–17, `scoring.ts` comment)
+- [ ] **C3. Companies House contactability assessment** (M) — Scout/prospect-engine: assess
+      the Companies House business profile to (a) **confirm business details** and (b)
+      **determine legal contact channels** (WhatsApp/text eligibility). Feeds C2's flag.
 
 ## D. Copy / page content
 
-- [x] **D1. Honest-copy pass — guarantee removed** — done 9 Jun 2026: dropped
-      "30 days or you don't pay" / "or we work for free" in `report.ts` + landing page;
-      replaced with directional timeframes (calls in weeks, Maps 1–3 months
-      proximity-capped, reviews immediate, SEO 6–12 months, AI a byproduct).
+- [x] **D1. Honest-copy pass — guarantee removed** — done 9 Jun 2026 and **verified
+      removed everywhere** (repo-wide grep returns zero hits). Tyler's call: remove it,
+      it commoditizes us. Dropped "30 days or you don't pay" (`report.ts`) and "or we work
+      for free" (landing page); replaced with directional timeframes (calls in weeks, Maps
+      1–3 months proximity-capped, reviews immediate, SEO 6–12 months, AI a byproduct).
 - [ ] **D2. Remaining honest-copy pass** (S) — add a one-line "how we measure" note for
       directional stats ("40+ reviews dominate local Maps"); strongest locksmith data is
       a 2018 BrightLocal study, some call stats are vendor-sourced. (§A6)
@@ -68,12 +81,17 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       the earlier $1,000–1,800 was US and is superseded). Decide whether/where to surface
       pricing on the report or keep it to the call. Validate competitiveness first.
 
-## E. Visual proof / UX (approach TBD — decide before building)
+## E. Visual proof / UX (approach DECIDED 9 Jun 2026)
 
-- [ ] **E1. Visual-proof approach** (decision, then M/L) — how to show per-page evidence.
-      Options to weigh: **stored screenshots** (screenshot API + blob storage, new env var
-      + cost) vs **live-data finding cards** (cheapest, no infra) vs **Google Maps embed**
-      of the GBP. Pick the approach before building; screenshots stay deferred unless chosen.
+- [ ] **E1. Visual-proof approach — CONFIRMED** (M). Build the report's visual proof as
+      **live data cards + a free Google Maps embed**, explicitly **NOT stored screenshots**
+      and **NOT iframing the prospect's own site**:
+      - A branded **"Your Google listing" card** built from **Places API data**, referencing
+        **Google's hosted photo URL** (no images stored by us).
+      - A **map with pins** (free Google Maps embed) — not a screenshot.
+      - A **per-town rank layer** to come from a **SERP API (DataForSEO / Serper)** — being
+        **scoped in a separate thread**; wire it in once that scope lands.
+      Screenshots and site-iframing are explicitly ruled out (cost/infra + trust/legal).
 - [ ] **E2. Founder bio/photo + Car Key Kings proof** (S–M) — one founder line + photo and
       a real client outcome (Car Key Kings) for cold-prospect trust. Needs a real,
       quotable outcome — confirm the numbers before publishing.
@@ -89,10 +107,36 @@ Effort: **S** ≤ half a day · **M** ~1–2 days · **L** multi-day / new infra
       master, not GitHub. Review for hardcoded secrets, then commit the clean ones.
 - [ ] **F2. Fix pre-existing scout TS errors** (S, optional) — `prospect-scout.ts`
       `resolveEntity().catch(...)` fallback type; `tsc` trips on it. (§A8)
+- [ ] **F3. Pre-go-live hardening** (S) — from the (now-archived) Execution Guide V1:
+      run `npm audit fix` on the MCP server and review high-severity items; add `@types/node`
+      to the prospecting-engine devDeps/tsconfig so `tsc` runs clean (ties to F2). Do before
+      any client data flows.
 
----
+## G. Build sequence — this week (the critical path)
 
-## Note — WhatsApp (this week, GDPR boundary)
+Ordered. Each gate must pass before the next. No prospect is contacted in GHL until G5.
+
+- [ ] **G1. Fully build the Locksmith Master Template** (L) — the single source every client
+      clones from. Specifically:
+  - [ ] Verify/add the **"Unknown"** option on the **Entity Type** custom field (GHL UI).
+  - [ ] Build the **6 SMS templates** (Missed Call Text-Back, Review Request — First Ask,
+        Review Request — Follow-Up, New Inquiry Confirmation, Job Booking Confirmation,
+        New Client Welcome).
+  - [ ] Build the **5 workflows** (01 Missed Call Text-Back, 02 Review Request Sequence,
+        03 New Inquiry Auto-Response, 04 New Client Welcome, 05 Monthly Reporting Reminder).
+  - [ ] Build the **8-stage Locksmith Job Pipeline** (New Inquiry → Called Back → Quoted →
+        Job Booked → Job Complete → Review Requested → Won → Lost).
+  - [ ] **Create the Snapshot** ("Strath Locksmith V1 — May 2026") once the above is verified.
+- [ ] **G2. Clone the Template → create Car Key Kings as the end-to-end BETA** (M) — incl. the
+      **premium site rebuild**. CKK is not built until this runs. (CKK is NOT live today.)
+- [ ] **G3. strathgrowth.com rebuild** (M) — apply the **new branding package**, load into GHL,
+      and **launch**. Not fully live until this is done.
+- [ ] **G4. Refine the Tier A audit doc** (S–M) — the audit/report output a prospect receives.
+- [ ] **G5. TEST outreach firing end-to-end** (M) — before connecting ANY prospect in GHL.
+      Publish the 5-touch sequence / DNC handler only after this passes (today they're drafts;
+      only "Strath - Response Handler" v6 is published).
+- [ ] **G6. Agent swarm for client delivery** (L) — spin up post-close delivery automation,
+      tested against the CKK beta first.
 
 Tyler is signing up for a **WhatsApp Business number** this week. **GDPR/PECR boundary:**
 **manual** outreach is OK; **automated** cold WhatsApp to individuals/sole traders is **not**

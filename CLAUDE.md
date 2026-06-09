@@ -2,6 +2,11 @@
 
 ## CRITICAL: Read this before touching anything in GHL.
 
+> **📋 Deferred / queued work lives in [`JOBS_TO_BE_DONE.md`](./JOBS_TO_BE_DONE.md).**
+> Every session MUST consult it at the start and **append** any new deferred, queued, or
+> out-of-scope work there (don't lose it in chat, and don't scope-creep the current task).
+> Reconciliation history is in [`docs/AUDIT_RECONCILIATION.md`](./docs/AUDIT_RECONCILIATION.md).
+
 ---
 
 ## 1. GHL Authentication — Two Entirely Separate Tiers
@@ -96,7 +101,7 @@ That file contains aliases (so "Tony's account" → Car Key Kings), tier classif
 | Locksmith Master Template | See `GHL_STRATH_TEMPLATE` | `GHL_STRATH_TEMPLATE` | `GHL_STRATH_TEMPLATE_KEY` |
 | Client Slot 3+ | Assigned when created | New var per client | New var per client |
 
-**WARNING — Car Key Kings is a live client account.** Do not test automations there. Use Locksmith Master Template for all testing.
+**WARNING — Car Key Kings is the designated first beta client (NOT yet built/live).** Do not build or test automations there. Use the Locksmith Master Template for all build/testing.
 
 **To find a Location ID:** Log into GHL, navigate into the sub-account. The URL reads:
 `app.gohighlevel.com/location/{LOCATION_ID}/dashboard`
@@ -180,8 +185,8 @@ Examples:
 - `switch_account({ account: "agency" })` — switch to agency-level
 - `switch_account({ account: "template" })` — switch to Locksmith Master Template
 
-**WARNING:** `car_key_kings` is a live client account. State this clearly to Tyler before
-switching to it, and do not test automations there.
+**WARNING:** `car_key_kings` is the designated first beta client (not yet built/live). State
+this clearly to Tyler before switching to it, and do not build/test automations there.
 
 ### Step 4: Confirm and proceed
 
@@ -280,7 +285,7 @@ A 401 from GHL means one of three things:
 | MCP Repo | GitHub | https://github.com/tylerspeer-beep/Go-High-Level-MCP-2026-Complete | Railway deploys from here |
 | Frontend / Serverless | Vercel (strath-agency) | strath-agency-8bbpoiyp5-tylerspeer-7800s-projects.vercel.app | Client sites, cron jobs, reporting |
 | Database | Neon Postgres | strath-agency-db (London, lhr1) | Prospects, audits, client data |
-| Documents | Google Drive | Folder ID: 1ByZ8ApEnaZrglsE0zWT-U0irwiq8Zw82 | All SOPs and docs |
+| Documents | Google Drive | Folder ID: 1O8KrLET7vbPsMJw3OpRYT9dAaRtoTwEF | All SOPs and docs (working Computers-sync folder) |
 
 ---
 
@@ -291,8 +296,11 @@ Tyler's operational base. All prospects and outreach live here. The Locksmith Pr
 (10 stages) lives here. Outreach sequences fire from here.
 
 **Car Key Kings (Location ID: 6D4IPXvCT5SOEct8ah0O)**
-Tony, Ayrshire/Glasgow. First live client. Missed call text-back, review request automations,
-and client website. Automations were built and tested here first per the Strath process.
+Tony, Ayrshire/Glasgow. The designated **first BETA client — NOT yet built or live.** CKK will
+be created by **cloning the Locksmith Master Template once the template is fully built** (SMS
+templates, workflows, pipeline, Snapshot), then customised (incl. a premium site rebuild). Its
+automations (missed-call text-back, review requests) are **NOT live** — do not treat CKK as a
+running client. Still use the Locksmith Master Template for all build/testing.
 
 **Locksmith Master Template**
 The Snapshot source. Every new locksmith client gets their sub-account cloned from this.
@@ -497,6 +505,17 @@ fields before creating them. Search existing fields via `get_location_custom_fie
 
 Current as of 23 May 2026. Update this section as steps are completed.
 Legend: ✅ Done | ⏳ In Progress / Needs Verify | ⬜ Pending
+
+> **⚠️ Reality check (9 Jun 2026) — read before assuming anything is live:**
+> - **Car Key Kings is NOT built or live.** It is the first beta, to be created by cloning the
+>   Locksmith Master Template *after* the template is fully built. No CKK automations are running.
+> - **strathgrowth.com is NOT fully live.** It still needs the new branding package applied,
+>   loaded into GHL, and launched.
+> - **Outreach is intentionally DRAFT.** We are still scraping/scouting. The Tier A audit doc must
+>   be refined and outreach firing must be TESTED before any prospect is contacted in GHL. Only
+>   "Strath - Response Handler" (v6) is published; the 5-touch sequence, DNC handler, and Tier A
+>   review are drafts (see `docs/AUDIT_RECONCILIATION.md §A10.3`).
+> - The full build sequence is tracked in [`JOBS_TO_BE_DONE.md`](./JOBS_TO_BE_DONE.md).
 
 ---
 
@@ -743,9 +762,19 @@ only reliable verification. The following identifiers may all differ:
 - GBP listing name
 
 The agent must attempt to match across all of these. If a Companies House match is found:
-tag "Confirmed Ltd", ICP score +15. If not found: tag "Entity Unverified", treat as
-Sole Trader, email only. The `Entity Type` field in GHL holds the outcome. The
-`Companies House Number` field holds the SC/number if confirmed.
+tag "Confirmed Ltd". If not found: tag "Entity Unverified", treat as Sole Trader. The
+`Entity Type` field in GHL holds the outcome. The `Companies House Number` field holds
+the SC/number if confirmed.
+
+**Purpose of the entity signal — COMPLIANCE & CONTACTABILITY, not desirability.** Ltd-vs-
+sole-trader is NOT an ICP "good prospect" bonus. Its real job is to determine which legal
+contact channels we may use under PECR/GDPR: confirmed Ltd/LLP → WhatsApp/text eligible;
+sole trader / unverified → email only (cold WhatsApp/text to sole traders is a PECR breach
+risk). In `scoring.ts` today it is still a small fit weight (Ltd 10 / non-Ltd 5 = +5 delta —
+NOT the "+15" earlier prose claimed). **Decision (9 Jun 2026):** reframe this signal out of
+the desirability score and into a contactability/compliance flag — proposed change pending
+sign-off, tracked in [`JOBS_TO_BE_DONE.md`](../JOBS_TO_BE_DONE.md) and
+`docs/AUDIT_RECONCILIATION.md`. See also §17.
 
 ---
 
@@ -813,7 +842,7 @@ See `docs/AUDIT_RECONCILIATION.md` §B2 / §C.
 
 ### Fit categories (internal ICP qualifiers, never shown to prospect, max 25)
 
-**Entity Type (max 10)** — `Ltd → 10`, else `5`. Ltd = WhatsApp-eligible + higher commitment. (5-point delta, not the aspirational "+15".)
+**Entity Type (max 10)** — `Ltd → 10`, else `5` (a +5 delta in `scoring.ts` today; NOT the "+15" earlier prose claimed). ⚠️ **Its real purpose is compliance/contactability, not desirability** — Ltd vs sole trader sets WhatsApp/text eligibility under PECR (see §16). **Proposed (pending sign-off):** move this out of the 0–100 desirability score and into a separate contactability/compliance flag; that would change the max from 100 → 90 (or require redistributing 10 pts) and shift tier boundaries, so it is **not** applied yet. Tracked in [`JOBS_TO_BE_DONE.md`](../JOBS_TO_BE_DONE.md).
 
 **Urban / Proximity (max 8)** — urban (in `URBAN_CITIES` set in scoring.ts) `→ 8`, else `0`.
 
