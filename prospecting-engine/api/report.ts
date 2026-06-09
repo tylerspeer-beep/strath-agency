@@ -34,6 +34,13 @@ const PRESENCE_LABELS: Record<string, string> = {
   phone: 'Phone & Contactability',
 };
 
+// ── Strath v2 brand — earthy data-tier colours (match the map pins) ───────────
+// Single source for the green/amber/brick used by both the score bars (server)
+// and the Leaflet pin colours (client JS, interpolated into the inline script).
+const DATA_GREEN = '#2F7A56';
+const DATA_AMBER = '#C19A52';
+const DATA_BRICK = '#A4502E';
+
 // ── 1x1 transparent GIF for open tracking pixel ──────────────────────────────
 const TRACKING_PIXEL = Buffer.from(
   'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
@@ -219,7 +226,7 @@ function renderRankMap(p: Record<string, unknown>): { section: string; needsLeaf
     .map((t) => ({ town: t.town, lat: t.lat, lng: t.lng, rank: t.rank }));
 
   const rankColor = (rank: number | null) =>
-    rank === null ? '#ef4444' : rank <= 3 ? '#10b981' : rank <= 10 ? '#f59e0b' : '#ef4444';
+    rank === null ? DATA_BRICK : rank <= 3 ? DATA_GREEN : rank <= 10 ? DATA_AMBER : DATA_BRICK;
 
   // Text list (accessible + a fallback when JS/coords are unavailable).
   const list = towns.map((t) => {
@@ -240,18 +247,18 @@ function renderRankMap(p: Record<string, unknown>): { section: string; needsLeaf
   const section = `
   <div class="card">
     <div class="card-title">Where you rank on the map</div>
-    <p style="font-size:13px;color:#64748b;margin-bottom:16px">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
       For each town ${esc(businessName)} serves, this is where the business currently
       sits in Google's Maps results for a typical "auto locksmith" search. Green is a
-      top-3 spot (where most clicks go), amber is 4–10, red means not showing in the
+      top-3 spot (where most clicks go), amber is 4–10, brick means not showing in the
       top results yet.
     </p>
     ${headline ? `<div class="rk-headline">${headline}</div>` : ''}
     <div id="rankmap" class="rk-map"></div>
     <div class="rk-legend">
-      <span><span class="rk-dot" style="background:#10b981"></span>Top 3</span>
-      <span><span class="rk-dot" style="background:#f59e0b"></span>4–10</span>
-      <span><span class="rk-dot" style="background:#ef4444"></span>Not found</span>
+      <span><span class="rk-dot" style="background:${DATA_GREEN}"></span>Top 3</span>
+      <span><span class="rk-dot" style="background:${DATA_AMBER}"></span>4–10</span>
+      <span><span class="rk-dot" style="background:${DATA_BRICK}"></span>Not found</span>
     </div>
     <div class="rk-list">${list}</div>
   </div>
@@ -259,7 +266,7 @@ function renderRankMap(p: Record<string, unknown>): { section: string; needsLeaf
     (function(){
       var towns = ${JSON.stringify(pinData)};
       if (!window.L || !towns.length) return;
-      function color(r){ return r===null ? '#ef4444' : r<=3 ? '#10b981' : r<=10 ? '#f59e0b' : '#ef4444'; }
+      function color(r){ return r===null ? '${DATA_BRICK}' : r<=3 ? '${DATA_GREEN}' : r<=10 ? '${DATA_AMBER}' : '${DATA_BRICK}'; }
       function label(r){ return r===null ? '—' : '#'+r; }
       var map = L.map('rankmap', { scrollWheelZoom: false, attributionControl: true });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -333,11 +340,11 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
     presenceScore = Math.round((totalStrength / PRESENCE_MAX) * 100);
   }
 
-  const websiteStatusColor = websiteStatus === 'Optimised' ? '#10b981' :
-                             websiteStatus === 'Modern'    ? '#f59e0b' : '#ef4444';
+  const websiteStatusColor = websiteStatus === 'Optimised' ? DATA_GREEN :
+                             websiteStatus === 'Modern'    ? DATA_AMBER : DATA_BRICK;
 
-  const gbpStatusColor = gbpStatus === 'Claimed - Optimised' ? '#10b981' :
-                         gbpStatus === 'Claimed - Basic'     ? '#f59e0b' : '#ef4444';
+  const gbpStatusColor = gbpStatus === 'Claimed - Optimised' ? DATA_GREEN :
+                         gbpStatus === 'Claimed - Basic'     ? DATA_AMBER : DATA_BRICK;
 
   const quickWins: string[] = [];
   if (!hasSchema)   quickWins.push('Add LocalBusiness + LocksmithService schema markup');
@@ -367,47 +374,96 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Online Presence Report — ${businessName}</title>${leafletHead}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    /* ── Strath v2 brand tokens ─────────────────────────────────────────────── */
+    :root {
+      --slate: #15181C;       /* base dark — hero + close */
+      --graphite: #262B31;    /* dark surfaces */
+      --stone: #ECEAE4;       /* warm body background */
+      --paper: #F7F5F0;       /* card surface */
+      --ink: #1B1E23;         /* primary text on light */
+      --muted: #6B7177;       /* secondary grey (on light) */
+      --muted-dk: #9AA0A6;    /* secondary grey (on dark) */
+      --green: #1F4434;       /* British Racing Green — primary accent / CTA */
+      --green-hover: #2E5C46;
+      --honey: #C19A52;       /* sparing single highlight */
+      --line: #E1DDD3;        /* hairline on light surfaces */
+      /* earthy data tiers — match the map pins */
+      --data-green: #2F7A56;
+      --data-amber: #C19A52;
+      --data-brick: #A4502E;
+      --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f8fafc;
-      color: #1e293b;
+      font-family: var(--font-body);
+      background: var(--stone);
+      color: var(--ink);
       line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
+
+    /* ── Header (dark hero) ── */
     .header {
-      background: #0f172a;
-      color: white;
-      padding: 48px 24px 36px;
+      background: var(--slate);
+      color: var(--paper);
+      padding: 44px 24px 40px;
       text-align: center;
     }
-    .header .brand { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #94a3b8; margin-bottom: 16px; }
-    .header h1 { font-size: clamp(22px, 4vw, 32px); font-weight: 700; margin-bottom: 8px; }
-    .header .subtitle { color: #94a3b8; font-size: 15px; }
-    .container { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    .header .crest { height: 64px; width: auto; display: block; margin: 0 auto 14px; }
+    .header .wordmark {
+      font-family: var(--font-body);
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      color: var(--stone);
+      padding-left: 0.34em; /* optical centring for the tracking */
+      margin-bottom: 22px;
+    }
+    .header .brand {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--honey);
+      margin-bottom: 12px;
+    }
+    .header h1 { font-size: clamp(24px, 5vw, 34px); font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+    .header .subtitle { font-family: var(--font-mono); color: var(--muted-dk); font-size: 12.5px; letter-spacing: 0.02em; }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 28px 16px 56px; }
     .card {
-      background: white;
-      border-radius: 12px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
       padding: 28px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 18px;
+      box-shadow: 0 1px 2px rgba(21,24,28,0.04);
     }
     .card-title {
-      font-size: 13px;
-      font-weight: 600;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #64748b;
+      letter-spacing: 0.14em;
+      color: var(--muted);
       margin-bottom: 20px;
       padding-bottom: 12px;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1px solid var(--line);
     }
     .finding-row {
       display: flex;
       align-items: flex-start;
       gap: 14px;
       padding: 12px 0;
-      border-bottom: 1px solid #f8fafc;
+      border-bottom: 1px solid var(--line);
     }
     .finding-row:last-child { border-bottom: none; }
     .finding-icon {
@@ -421,135 +477,142 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
       font-size: 13px;
       margin-top: 2px;
     }
-    .icon-pass { background: #dcfce7; color: #16a34a; }
-    .icon-fail { background: #fee2e2; color: #dc2626; }
-    .icon-warn { background: #fef9c3; color: #b45309; }
+    .icon-pass { background: rgba(47,122,86,0.14); color: var(--data-green); }
+    .icon-fail { background: rgba(164,80,46,0.14); color: var(--data-brick); }
+    .icon-warn { background: rgba(193,154,82,0.18); color: #8A6C2E; }
     .finding-text { flex: 1; }
-    .finding-label { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
-    .finding-detail { font-size: 13px; color: #64748b; }
+    .finding-label { font-weight: 600; font-size: 14px; margin-bottom: 3px; color: var(--ink); }
+    .finding-detail { font-size: 13px; color: var(--muted); }
     .status-badge {
       display: inline-block;
+      font-family: var(--font-mono);
       padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
     }
-    .badge-fail { background: #fee2e2; color: #dc2626; }
-    .badge-warn { background: #fef9c3; color: #b45309; }
-    .badge-pass { background: #dcfce7; color: #16a34a; }
+    .badge-fail { background: rgba(164,80,46,0.14); color: var(--data-brick); }
+    .badge-warn { background: rgba(193,154,82,0.18); color: #8A6C2E; }
+    .badge-pass { background: rgba(47,122,86,0.14); color: var(--data-green); }
     .score-row {
       display: flex;
       align-items: center;
       gap: 16px;
       padding: 10px 0;
     }
-    .score-label { font-size: 14px; width: 140px; flex-shrink: 0; }
-    .score-bar-bg { flex: 1; background: #f1f5f9; border-radius: 4px; height: 8px; overflow: hidden; }
+    .score-label { font-size: 14px; width: 140px; flex-shrink: 0; color: var(--ink); }
+    .score-bar-bg { flex: 1; background: var(--line); border-radius: 4px; height: 8px; overflow: hidden; }
     .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-    .score-value { font-weight: 700; font-size: 14px; width: 36px; text-align: right; }
+    .score-value { font-family: var(--font-mono); font-weight: 700; font-size: 13px; width: 40px; text-align: right; }
     .quick-win {
       display: flex;
       align-items: flex-start;
-      gap: 10px;
+      gap: 12px;
       padding: 10px 0;
-      border-bottom: 1px solid #f8fafc;
+      border-bottom: 1px solid var(--line);
       font-size: 14px;
     }
     .quick-win:last-child { border-bottom: none; }
     .qw-num {
       width: 22px;
       height: 22px;
-      background: #0f172a;
-      color: white;
+      background: var(--green);
+      color: var(--paper);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: var(--font-mono);
       font-size: 11px;
       font-weight: 700;
       flex-shrink: 0;
       margin-top: 1px;
     }
     .obs-box {
-      background: #f8fafc;
-      border-left: 3px solid #e2e8f0;
+      background: var(--stone);
+      border-left: 3px solid var(--line);
       padding: 14px 16px;
       border-radius: 0 8px 8px 0;
       margin-bottom: 12px;
       font-size: 14px;
-      color: #334155;
+      color: var(--ink);
     }
-    .obs-box.critical { border-color: #ef4444; background: #fff5f5; }
+    .obs-box.critical { border-color: var(--data-brick); background: rgba(164,80,46,0.06); }
     .cta-section {
-      background: #0f172a;
-      color: white;
-      border-radius: 12px;
-      padding: 36px 28px;
+      background: var(--slate);
+      color: var(--paper);
+      border-radius: 14px;
+      padding: 40px 28px;
       text-align: center;
-      margin-top: 32px;
+      margin-top: 28px;
     }
-    .cta-section h2 { font-size: 20px; margin-bottom: 10px; }
-    .cta-section p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+    .cta-section h2 { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+    .cta-section p { color: var(--muted-dk); font-size: 14px; margin-bottom: 26px; }
     .cta-btn {
       display: inline-block;
-      background: #3b82f6;
-      color: white;
-      padding: 14px 32px;
-      border-radius: 8px;
+      background: var(--green);
+      color: var(--paper);
+      padding: 14px 34px;
+      border-radius: 9px;
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 15px;
+      letter-spacing: 0.01em;
+      transition: background 0.2s ease;
     }
-    .cta-btn:hover { background: #2563eb; }
-    .footer { text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px; }
+    .cta-btn:hover { background: var(--green-hover); }
+    .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 28px; }
+    .footer .footer-mono { font-family: var(--font-mono); letter-spacing: 0.02em; }
 
     /* ── Your Google listing card ── */
     .gl-row { display: flex; gap: 18px; align-items: stretch; }
     .gl-photo {
       position: relative; width: 120px; height: 120px; flex-shrink: 0;
-      border-radius: 10px; overflow: hidden; background: #0f172a;
+      border-radius: 10px; overflow: hidden; background: var(--graphite);
     }
     .gl-photo-fallback {
       position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      font-size: 44px; font-weight: 800; color: #475569; background: #e2e8f0;
+      font-family: var(--font-body);
+      font-size: 44px; font-weight: 800; color: var(--muted-dk); background: var(--graphite);
     }
     .gl-photo img {
       position: relative; width: 100%; height: 100%; object-fit: cover;
       opacity: 0; transition: opacity 0.4s ease;
     }
     .gl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-    .gl-name { font-size: 18px; font-weight: 700; color: #0f172a; }
-    .gl-cat { font-size: 13px; color: #64748b; margin-bottom: 8px; }
+    .gl-name { font-size: 18px; font-weight: 700; color: var(--ink); }
+    .gl-cat { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
     .gl-rating { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-    .gl-stars { color: #f59e0b; font-size: 15px; letter-spacing: 1px; }
-    .gl-star-empty { color: #cbd5e1; }
-    .gl-rating-num { font-weight: 700; color: #0f172a; font-size: 14px; }
-    .gl-reviews { font-size: 13px; color: #64748b; }
+    .gl-stars { color: var(--honey); font-size: 15px; letter-spacing: 1px; }
+    .gl-star-empty { color: var(--line); }
+    .gl-rating-num { font-family: var(--font-mono); font-weight: 700; color: var(--ink); font-size: 14px; }
+    .gl-reviews { font-size: 13px; color: var(--muted); }
     .gl-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .gl-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-    .gl-badge-ok { background: #dcfce7; color: #16a34a; }
-    .gl-badge-warn { background: #fee2e2; color: #dc2626; }
-    .gl-link { font-size: 13px; color: #3b82f6; text-decoration: none; font-weight: 600; }
-    .gl-note { font-size: 13px; color: #64748b; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f1f5f9; }
+    .gl-badge { display: inline-block; font-family: var(--font-mono); padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; }
+    .gl-badge-ok { background: rgba(47,122,86,0.14); color: var(--data-green); }
+    .gl-badge-warn { background: rgba(164,80,46,0.14); color: var(--data-brick); }
+    .gl-link { font-size: 13px; color: var(--green); text-decoration: none; font-weight: 600; }
+    .gl-note { font-size: 13px; color: var(--muted); margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 
     /* ── Rank map ── */
     .rk-headline {
-      font-size: 16px; color: #0f172a; background: #f8fafc; border: 1px solid #e2e8f0;
+      font-size: 16px; color: var(--ink); background: var(--stone); border: 1px solid var(--line);
       border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
     }
-    .rk-map { height: 320px; width: 100%; border-radius: 10px; overflow: hidden; z-index: 0; background: #e2e8f0; }
-    .rk-legend { display: flex; gap: 18px; font-size: 12px; color: #64748b; margin: 12px 0 4px; }
+    .rk-map { height: 320px; width: 100%; border-radius: 10px; overflow: hidden; z-index: 0; background: var(--line); }
+    .rk-legend { display: flex; gap: 18px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin: 12px 0 4px; }
     .rk-legend span { display: inline-flex; align-items: center; gap: 6px; }
     .rk-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
     .rk-list { margin-top: 8px; }
-    .rk-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f8fafc; font-size: 14px; }
+    .rk-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
     .rk-row:last-child { border-bottom: none; }
-    .rk-town { flex: 1; color: #334155; }
-    .rk-rank { font-weight: 700; font-size: 13px; }
+    .rk-town { flex: 1; color: var(--ink); }
+    .rk-rank { font-family: var(--font-mono); font-weight: 700; font-size: 13px; }
     .rk-pin-inner {
-      width: 30px; height: 30px; border-radius: 50%; color: white; font-weight: 700;
+      width: 30px; height: 30px; border-radius: 50%; color: white; font-family: var(--font-mono); font-weight: 700;
       font-size: 12px; display: flex; align-items: center; justify-content: center;
-      border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+      border: 2px solid white; box-shadow: 0 1px 4px rgba(21,24,28,0.4);
     }
 
     @media (max-width: 480px) {
@@ -563,7 +626,9 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
 <body>
 
 <div class="header">
-  <div class="brand">Strath Agency — Prepared for</div>
+  <img class="crest" src="${esc(baseUrl)}/strath-crest.png" alt="Strath Agency crest" width="50" height="64">
+  <div class="wordmark">Strath</div>
+  <div class="brand">Prepared for</div>
   <h1>${businessName}</h1>
   <div class="subtitle">Online Presence Analysis · ${city}${city ? ' · ' : ''}${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</div>
 </div>
@@ -595,7 +660,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
         <div class="finding-label">Website Quality</div>
         <div class="finding-detail">
           <span class="status-badge ${websiteStatus === 'Optimised' ? 'badge-pass' : websiteStatus === 'Modern' ? 'badge-warn' : 'badge-fail'}">${websiteStatus === 'None' ? 'No Website' : websiteStatus}</span>
-          ${websiteUrl ? `<span style="margin-left:8px;font-size:12px;color:#94a3b8">${websiteUrl.replace(/^https?:\/\//, '')}</span>` : ''}
+          ${websiteUrl ? `<span style="margin-left:8px;font-size:12px;color:var(--muted)">${websiteUrl.replace(/^https?:\/\//, '')}</span>` : ''}
         </div>
       </div>
     </div>
@@ -603,7 +668,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
     <div class="finding-row">
       <div class="finding-icon ${hasSchema ? 'icon-pass' : 'icon-fail'}">${hasSchema ? '✓' : '✗'}</div>
       <div class="finding-text">
-        <div class="finding-label">Machine-readable business info <span style="color:#94a3b8;font-weight:400">(schema markup)</span></div>
+        <div class="finding-label">Machine-readable business info <span style="color:var(--muted);font-weight:400">(schema markup)</span></div>
         <div class="finding-detail">${hasSchema ? 'Present — helps Google and AI tools read and cite this business.' : 'Missing — this is one of the structured-data signals AI search tools prefer when they cite local providers. Sites with it get cited more often.'}</div>
       </div>
     </div>
@@ -646,7 +711,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
   ${presenceBars && presenceScore !== null ? `
   <div class="card">
     <div class="card-title">Online Presence Score</div>
-    <p style="font-size:13px;color:#64748b;margin-bottom:20px">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px">
       How strong this business looks across the signals that actually win local locksmith
       jobs — Google Business Profile, reviews, phone reachability, and the website that
       supports them. The bars show the strongest and weakest areas.
@@ -654,7 +719,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
 
     ${presenceBars.map((b) => {
       const pct = Math.round((b.strength / b.max) * 100);
-      const color = pct >= 67 ? '#10b981' : pct >= 34 ? '#f59e0b' : '#ef4444';
+      const color = pct >= 67 ? DATA_GREEN : pct >= 34 ? DATA_AMBER : DATA_BRICK;
       return `
     <div class="score-row">
       <div class="score-label">${b.label}</div>
@@ -663,9 +728,9 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
     </div>`;
     }).join('')}
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:16px">
-      <div style="font-size:42px;font-weight:800;color:${presenceScore >= 67 ? '#10b981' : presenceScore >= 34 ? '#f59e0b' : '#ef4444'}">${presenceScore}<span style="font-size:18px;color:#94a3b8">/100</span></div>
-      <div style="font-size:14px;color:#64748b">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:16px">
+      <div style="font-family:var(--font-mono);font-size:42px;font-weight:700;color:${presenceScore >= 67 ? DATA_GREEN : presenceScore >= 34 ? DATA_AMBER : DATA_BRICK}">${presenceScore}<span style="font-size:18px;color:var(--muted)">/100</span></div>
+      <div style="font-size:14px;color:var(--muted)">
         ${presenceScore >= 67 ? 'Solid local presence. A few targeted fixes would tighten the lead well further.' :
           presenceScore >= 34 ? 'A workable base with clear gaps — the weakest bars above are where the quickest wins are.' :
           'Significant gaps in the signals that capture local jobs. The biggest levers are the lowest bars above.'}
@@ -685,7 +750,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
         <div class="finding-label">Profile Status</div>
         <div class="finding-detail">
           <span class="status-badge ${gbpStatus === 'Claimed - Optimised' ? 'badge-pass' : gbpStatus === 'Claimed - Basic' ? 'badge-warn' : 'badge-fail'}">${gbpStatus}</span>
-          ${gbpStatus === 'Unclaimed' ? '<div style="margin-top:6px;font-size:13px;color:#64748b">An unclaimed profile means anyone can suggest edits, hours can be wrong, and the business has no control over its Maps presence.</div>' : ''}
+          ${gbpStatus === 'Unclaimed' ? '<div style="margin-top:6px;font-size:13px;color:var(--muted)">An unclaimed profile means anyone can suggest edits, hours can be wrong, and the business has no control over its Maps presence.</div>' : ''}
         </div>
       </div>
     </div>
@@ -726,7 +791,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
   ${quickWins.length > 0 ? `
   <div class="card">
     <div class="card-title">Quick Wins — Prioritised</div>
-    <p style="font-size:13px;color:#64748b;margin-bottom:16px">These changes have the highest impact on both Google ranking and AI search visibility.</p>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">These changes have the highest impact on both Google ranking and AI search visibility.</p>
     ${quickWins.slice(0, 6).map((w, i) => `
     <div class="quick-win">
       <div class="qw-num">${i + 1}</div>
@@ -742,7 +807,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
   </div>
 
   <div class="footer">
-    <p>Strath Agency · tyler@strathagency.com · Prepared exclusively for ${businessName}</p>
+    <p class="footer-mono">Strath Agency · tyler@strathagency.com · Prepared exclusively for ${businessName}</p>
     <p style="margin-top:4px">© ${now} Strath Agency. This report is confidential and prepared solely for the named business.</p>
   </div>
 
