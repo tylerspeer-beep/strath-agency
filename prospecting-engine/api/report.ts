@@ -627,7 +627,7 @@ export function renderReport(p: Record<string, unknown>, trackingUrl: string, ba
 <body>
 
 <div class="header">
-  <img class="crest" src="${esc(baseUrl)}/strath-crest-metallic.png" alt="Strath Agency crest" width="51" height="64">
+  <img class="crest" src="${esc(baseUrl)}/strath-crest.png" alt="Strath Agency crest" width="51" height="64">
   <div class="wordmark">Strath</div>
   <div class="brand">Prepared for</div>
   <h1>${businessName}</h1>
