@@ -16,6 +16,9 @@
     "api/prospect-audit.ts": {
       "maxDuration": 60
     },
+    "api/prospect-manual.ts": {
+      "maxDuration": 60
+    },
     "api/backfill-ghl-contacts.ts": {
       "maxDuration": 60
     },
